@@ -15,7 +15,10 @@ interface Drama {
   isUpcoming: boolean
   airDays?: string | null
   airTime?: string | null
+  pausedDays?: string | null
+  isSuspended?: boolean | null
   expectedDate?: string | null
+  galleryImages?: string | null
   expectedPrecision?: string | null
   totalEpisodes?: number | null
   currentEpisode?: number | null
@@ -305,7 +308,7 @@ export default function AdminDrama() {
       title: d.title, slug: d.slug, coverImage: d.coverImage || '', description: d.description || '',
       region: d.region || '', tags: d.tags || '',
       isOnSchedule: d.isOnSchedule, isNewlyAired: d.isNewlyAired, isUpcoming: d.isUpcoming,
-      airDays: d.airDays || '', pausedDays: (d as Record<string,unknown>).pausedDays as string || '', isSuspended: !!(d as Record<string,unknown>).isSuspended, airTime: d.airTime || '', expectedDate: d.expectedDate ? d.expectedDate.slice(0, 10) : '',
+      airDays: d.airDays || '', pausedDays: d.pausedDays || '', isSuspended: !!d.isSuspended, airTime: d.airTime || '', expectedDate: d.expectedDate ? d.expectedDate.slice(0, 10) : '',
       expectedPrecision: d.expectedPrecision || 'day',
       totalEpisodes: d.totalEpisodes || 0, currentEpisode: d.currentEpisode || 0, manualEpisode: d.manualEpisode || 0,
       isCompleted: d.isCompleted, startDate: d.startDate ? d.startDate.slice(0, 10) : '',
@@ -315,11 +318,11 @@ export default function AdminDrama() {
       episodesPerDay: d.episodesPerDay || 1,
       imagePosition: d.imagePosition || 'center',
       originalTitle: d.originalTitle || '',
-      scheduleImage: (d as Record<string,unknown>).scheduleImage as string || '',
+      scheduleImage: d.scheduleImage || '',
     })
     // 加载剧照
     try {
-      const raw = (d as Record<string,unknown>).galleryImages as string | null
+      const raw = d.galleryImages as string | null
       setGalleryImages(raw ? JSON.parse(raw) : [])
     } catch { setGalleryImages([]) }
     // 填充下载链接
@@ -396,7 +399,7 @@ export default function AdminDrama() {
   }
 
   // 粘贴图片上传
-  const handleImagePaste = async (e: React.ClipboardEvent, mode: 'cover' | 'gallery') => {
+  const handleImagePaste = async (e: React.ClipboardEvent, mode: 'cover' | 'gallery' | 'scheduleImage') => {
     const items = e.clipboardData.items
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.startsWith('image/')) {
@@ -407,6 +410,8 @@ export default function AdminDrama() {
         if (!url) return
         if (mode === 'cover') {
           setForm(prev => ({ ...prev, coverImage: url }))
+        } else if (mode === 'scheduleImage') {
+          setForm(prev => ({ ...prev, scheduleImage: url }))
         } else {
           setGalleryImages(prev => [...prev, url])
         }
@@ -644,7 +649,7 @@ export default function AdminDrama() {
                     }} />
                 </label>
               </div>
-              <input value={form.scheduleImage} onChange={e => setForm({ ...form, scheduleImage: e.target.value })} onPaste={e => handleImagePaste(e, url => setForm(prev => ({ ...prev, scheduleImage: url })))} placeholder="粘贴图片URL（截图可直接Ctrl+V粘贴）"
+              <input value={form.scheduleImage} onChange={e => setForm({ ...form, scheduleImage: e.target.value })} onPaste={e => handleImagePaste(e, 'scheduleImage')} placeholder="粘贴图片URL（截图可直接Ctrl+V粘贴）"
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--brand)]" />
               {form.scheduleImage && (
                 <div className="mt-1.5 relative inline-block">
