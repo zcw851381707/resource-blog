@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DownloadLink {
+  id          String   @id @default(uuid())
+  platform    String
+  url         String
+  extractCode String?
+  label       String?
+  dramaId     String
+  createdAt   DateTime @default(now())
+  drama       Drama    @relation(fields: [dramaId], references: [id], onDelete: Cascade)
+}
+
+model Drama {
+  id                String         @id @default(uuid())
+  title             String
+  slug              String         @unique
+  coverImage        String?
+  description       String?
+  region            String?
+  tags              String?
+  isOnSchedule      Boolean        @default(false)
+  isNewlyAired      Boolean        @default(false)
+  isUpcoming        Boolean        @default(false)
+  airDays           String?
+  pausedDays        String?
+  isSuspended       Boolean        @default(false)
+  airTime           String?
+  expectedDate      DateTime?
+  expectedPrecision String?        @default("day")
+  totalEpisodes     Int?
+  currentEpisode    Int?
+  manualEpisode     Int?
+  isCompleted       Boolean        @default(false)
+  startDate         DateTime?
+  updateFrequency   String?
+  sortOrder         Int            @default(0)
+  clickCount        Int            @default(0)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  completedAt       DateTime?
+  videoUrl          String?
+  videoLabel        String?
+  seriesGroup       String?
+  seriesOrder       Int?           @default(0)
+  episodesPerDay    Int?           @default(1)
+  notifiedAt        DateTime?
+  lastEpisodeUpdate DateTime?
+  imagePosition     String?        @default("center")
+  originalTitle     String?        @default("")
+  scheduleImage     String?
+  galleryImages     String?
+  downloadLinks     DownloadLink[]
+  linkReports       LinkReport[]
+}
+
+model Banner {
+  id            String   @id @default(uuid())
+  title         String
+  subtitle      String?
+  highlightWord String?
+  image         String?
+  gradientFrom  String   @default("#C8283C")
+  gradientTo    String   @default("#DC6464")
+  buttonText    String?
+  buttonLink    String?
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  content   String
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SocialLink {
+  id        String   @id @default(uuid())
+  name      String
+  icon      String
+  url       String?
+  qrCode    String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SiteSettings {
+  id               String   @id @default(uuid())
+  tipQRCode        String?
+  tipButtonText    String   @default("打赏")
+  publicAccountImg String?
+  updatedAt        DateTime @updatedAt
+  larkWebhookUrl   String?
+  larkAppId        String?
+  larkAppSecret    String?
+  larkChatId       String?
+}
+
+model VisitLog {
+  id        String   @id @default(uuid())
+  path      String
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model ResourceRequest {
+  id              String   @id @default(uuid())
+  name            String
+  type            String   @default("request")
+  description     String?
+  contact         String?
+  email           String?
+  linkUrl         String?
+  linkExtractCode String?
+  likes           Int      @default(0)
+  reply           String?
+  isProcessed     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+}
+
+model LinkReport {
+  id           String   @id @default(uuid())
+  dramaId      String
+  linkId       String
+  linkPlatform String
+  issueType    String?
+  note         String?
+  email        String?
+  ip           String?
+  isProcessed  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  drama        Drama    @relation(fields: [dramaId], references: [id], onDelete: Cascade)
+}

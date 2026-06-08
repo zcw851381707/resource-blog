@@ -1,26 +1,236 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-brand: #D47060;
+  --color-brand-light: #E89080;
+  --color-brand-pale: #F5E0D8;
+  --color-brand-bg: #FFF8F5;
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --bg: #ffffff;
+  --bg-card: #ffffff;
+  --bg-secondary: #f8f6f4;
+  --text-primary: #2a2a2a;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --border: #ebe7e4;
+  --brand: #D47060;
+  --brand-light: #E89080;
+  --brand-pale: #F5E0D8;
+  --brand-bg: #FFF8F5;
+}
+
+.dark {
+  --bg: #1a1520;
+  --bg-card: #241e28;
+  --bg-secondary: #2e2632;
+  --text-primary: #e8e0e0;
+  --text-secondary: #a89898;
+  --text-muted: #807070;
+  --border: #3a3038;
+  --brand: #E89080;
+  --brand-light: #f0a898;
+  --brand-pale: #3a2828;
+  --brand-bg: #2a1a1a;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: "PingFang SC", "苹方", -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
 }
+
+/* iPhone 挖孔屏安全区 */
+@supports (padding-top: env(safe-area-inset-top)) {
+  html {
+    padding-top: env(safe-area-inset-top);
+  }
+  body > header {
+    margin-top: calc(-1 * env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+}
+
+/* 追剧日历：始终隐藏滚动条 + 惯性滚动 */
+.scrollbar-hidden {
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* 自适应网格：自动填充列数，随窗口宽度平滑变化 */
+.drama-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .drama-grid {
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .drama-grid {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  }
+}
+
+
+/* Banner 星光动画 */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+.star {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+/* Toast 动画 */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.toast-enter {
+  animation: slideUp 0.3s ease;
+}
+
+/* 弹窗动画 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.modal-bg {
+  animation: fadeIn 0.2s ease;
+}
+.modal-content {
+  animation: scaleIn 0.2s ease;
+}
+
+/* 公告滚动 */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 25s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* 封面轮播倒计时条 */
+@keyframes carouselCountdown {
+  0% { transform: scaleX(0); transform-origin: left; }
+  100% { transform: scaleX(1); transform-origin: left; }
+}
+
+@media (max-width: 767px) {
+  .animate-marquee {
+    animation: none;
+    white-space: normal;
+  }
+}
+
+/* Banner 交叉淡入淡出 */
+@keyframes bannerIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes bannerOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-bannerIn { animation: bannerIn 0.5s ease-out forwards; }
+.animate-bannerOut { animation: bannerOut 0.5s ease-out forwards; }
+
+/* 公告关闭 */
+@keyframes collapseOut {
+  0% { opacity: 1; max-height: 200px; margin-bottom: 1rem; }
+  100% { opacity: 0; max-height: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; }
+}
+.animate-collapseOut {
+  animation: collapseOut 0.35s ease-in forwards;
+}
+
+/* 页面加载：纯透明度淡入，快速克制 */
+@keyframes pageIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-pageIn {
+  animation: pageIn 0.35s ease-out both;
+}
+
+/* 滚动触发：整体微浮 + 淡入，不做逐张错开 */
+.section-reveal {
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+.section-reveal:not(.revealed) {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.section-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 骨架屏脉冲 */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg) 50%, var(--bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.duration-600 { transition-duration: 600ms; }
+
+/* 卡片入场动画 */
+@keyframes cardReveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.card-reveal {
+  animation: cardReveal 0.4s ease-out both;
+}
+.card-reveal:nth-child(1) { animation-delay: 0s; }
+.card-reveal:nth-child(2) { animation-delay: 0.05s; }
+.card-reveal:nth-child(3) { animation-delay: 0.1s; }
+.card-reveal:nth-child(4) { animation-delay: 0.15s; }
+.card-reveal:nth-child(5) { animation-delay: 0.2s; }
+.card-reveal:nth-child(6) { animation-delay: 0.25s; }
+.card-reveal:nth-child(7) { animation-delay: 0.3s; }
+.card-reveal:nth-child(8) { animation-delay: 0.35s; }
+.card-reveal:nth-child(9) { animation-delay: 0.4s; }
+.card-reveal:nth-child(10) { animation-delay: 0.45s; }
+.card-reveal:nth-child(11) { animation-delay: 0.5s; }
+.card-reveal:nth-child(12) { animation-delay: 0.55s; }
