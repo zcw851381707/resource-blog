@@ -24,6 +24,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data: {
         isCompleted: true,
         completedAt: new Date(),
+        isNewlyAired: false,
       },
     })
     return NextResponse.json(drama)
@@ -45,11 +46,21 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     sortOrder, videoUrl, videoLabel, seriesGroup, seriesOrder, episodesPerDay, downloadLinks,
   } = body
 
-  // 更换封面时，删除旧的上传文件
-  const oldDrama = await prisma.drama.findUnique({ where: { id }, select: { coverImage: true } })
+  // 更换封面/日程图时，删除旧的上传文件
+  const oldDrama = await prisma.drama.findUnique({ where: { id }, select: { coverImage: true, isCompleted: true, scheduleImage: true } })
   if (oldDrama?.coverImage && oldDrama.coverImage !== coverImage) {
     await deleteCoverFile(oldDrama.coverImage)
   }
+  if (oldDrama?.scheduleImage && oldDrama.scheduleImage !== body.scheduleImage) {
+    await deleteCoverFile(oldDrama.scheduleImage)
+  }
+
+  // 自动管理 completedAt：首次标记完结时记录时间，取消完结时清空
+  const completedAtValue = isCompleted && !oldDrama?.isCompleted
+    ? new Date()
+    : !isCompleted && oldDrama?.isCompleted
+    ? null
+    : undefined
 
   // 事务保护：删除旧链接和更新合并为原子操作
   const drama = await prisma.$transaction(async (tx) => {
@@ -75,6 +86,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         currentEpisode,
         manualEpisode,
         isCompleted,
+        ...(completedAtValue !== undefined ? { completedAt: completedAtValue } : {}),
         startDate: startDate ? new Date(startDate) : null,
         sortOrder,
         scheduleImage: body.scheduleImage || null,
@@ -120,10 +132,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await requireAuth()
   const { id } = await params
-  const drama = await prisma.drama.findUnique({ where: { id }, select: { coverImage: true } })
-  if (drama?.coverImage) {
-    await deleteCoverFile(drama.coverImage)
-  }
+  const drama = await prisma.drama.findUnique({ where: { id }, select: { coverImage: true, scheduleImage: true } })
+  if (drama?.coverImage) await deleteCoverFile(drama.coverImage)
+  if (drama?.scheduleImage) await deleteCoverFile(drama.scheduleImage)
   await prisma.drama.delete({ where: { id } })
   return NextResponse.json({ success: true })
 }

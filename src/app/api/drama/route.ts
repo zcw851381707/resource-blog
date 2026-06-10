@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       currentEpisode,
       manualEpisode,
       isCompleted: isCompleted ?? false,
+      completedAt: (isCompleted ?? false) ? new Date() : null,
       startDate: startDate ? new Date(startDate) : null,
       sortOrder: sortOrder ?? 0,
       scheduleImage: body.scheduleImage || null,

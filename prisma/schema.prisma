@@ -75,12 +75,23 @@ model Banner {
   subtitle      String?
   highlightWord String?
   image         String?
+  mediaType     String   @default("image")
+  videoUrl      String?
+  videoPoster   String?
+  videoDuration Int?
   gradientFrom  String   @default("#C8283C")
   gradientTo    String   @default("#DC6464")
   buttonText    String?
   buttonLink    String?
+  bannerLink    String?
+  showButton    Boolean  @default(false)
+  isPortrait    Boolean  @default(false)
+  portraitImages String?
   sortOrder     Int      @default(0)
   isActive      Boolean  @default(true)
+  dramaId       String?
+  description   String?
+  imagePosition String?  @default("center")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

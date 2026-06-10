@@ -7,6 +7,7 @@ export type ScheduleDrama = {
   expectedDate?: Date | string | null
   expectedPrecision?: string | null
   isCompleted?: boolean
+  completedAt?: Date | string | null
   isOnSchedule?: boolean
   isUpcoming?: boolean
 } & Record<string, unknown>
@@ -43,9 +44,20 @@ export function buildWeeklySchedule<T extends ScheduleDrama>(dramas: T[], now = 
   const schedule: Record<string, T[]> = {}
   for (let i = 0; i < 7; i++) schedule[String(i)] = []
 
+  // 计算本周一的 0:00
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1))
+  monday.setHours(0, 0, 0, 0)
+
   for (const drama of dramas) {
     if (drama.isOnSchedule && drama.airDays) {
-      if (drama.isCompleted) continue
+      // 已完结：如果完结日期在本周一之前，不再显示；本周内完结的仍保留
+      if (drama.isCompleted) {
+        const completedDate = drama.completedAt ? new Date(drama.completedAt) : null
+        if (completedDate && completedDate < monday) continue
+        // 没有 completedAt 的旧数据，跳过（兼容）
+        if (!completedDate) continue
+      }
       const days = drama.airDays.split(',').map(d => d.trim())
       for (const day of days) {
         if (schedule[day]) schedule[day].push(drama)

@@ -1,5 +1,59 @@
 @import "tailwindcss";
 
+/* 辰宇落雁體 - 清秀手写体 */
+@font-face {
+  font-family: "FontTitle-ChenYuluoyan";
+  src: url("/fonts/chenyuluoyan.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 鸿雷行书简体 - 豪放行书 */
+@font-face {
+  font-family: "FontTitle-Honglei";
+  src: url("/fonts/honglei-xingshu.otf") format("opentype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 字制区喜脉体 - 俏皮美术体 */
+@font-face {
+  font-family: "FontTitle-Ximai";
+  src: url("/fonts/ximal-ti.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 字制区喜脉喜欢体 - 圆润可爱体 */
+@font-face {
+  font-family: "FontTitle-XimaiXihuan";
+  src: url("/fonts/ximal-xihuan-ti.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* はなぞめフォント - 日文 */
+@font-face {
+  font-family: "FontTitle-Hanasome";
+  src: url("/fonts/hanasome.otf") format("opentype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Dancing Script - 英文手写体 */
+@font-face {
+  font-family: "FontTitle-DancingScript";
+  src: url("/fonts/dancing-script.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme inline {
   --color-brand: #D47060;
   --color-brand-light: #E89080;
@@ -158,17 +212,27 @@ body {
   }
 }
 
-/* Banner 交叉淡入淡出 */
-@keyframes bannerIn {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
+/* Banner 左右滑动切换 */
+@keyframes slideInFromRight {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(0); }
 }
-@keyframes bannerOut {
-  0% { opacity: 1; }
-  100% { opacity: 0; }
+@keyframes slideOutToLeft {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
 }
-.animate-bannerIn { animation: bannerIn 0.5s ease-out forwards; }
-.animate-bannerOut { animation: bannerOut 0.5s ease-out forwards; }
+@keyframes slideInFromLeft {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(0); }
+}
+@keyframes slideOutToRight {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(100%); }
+}
+.animate-slideNextIn { animation: slideInFromRight 0.5s ease-out forwards; }
+.animate-slideNextOut { animation: slideOutToLeft 0.5s ease-out forwards; }
+.animate-slidePrevIn { animation: slideInFromLeft 0.5s ease-out forwards; }
+.animate-slidePrevOut { animation: slideOutToRight 0.5s ease-out forwards; }
 
 /* 公告关闭 */
 @keyframes collapseOut {

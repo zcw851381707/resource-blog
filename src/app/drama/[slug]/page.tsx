@@ -63,6 +63,7 @@ export default async function DramaDetailPage({ params }: { params: Promise<{ sl
         coverImage: drama.coverImage,
         region: drama.region,
         isCompleted: drama.isCompleted,
+        completedAt: drama.completedAt?.toISOString() ?? null,
         isOnSchedule: drama.isOnSchedule,
         isNewlyAired: drama.isNewlyAired,
         isUpcoming: drama.isUpcoming,

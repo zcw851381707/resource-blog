@@ -61,6 +61,19 @@ async function updateEpisodes() {
       where: { id: u.id },
       data: { currentEpisode: u.newEp, lastEpisodeUpdate: now }
     })
+
+    // 自动完结：当前集数达到或超过总集数时
+    const drama = await prisma.drama.findUnique({
+      where: { id: u.id },
+      select: { totalEpisodes: true, isCompleted: true }
+    })
+    if (drama && drama.totalEpisodes && drama.totalEpisodes > 0 && u.newEp >= drama.totalEpisodes && !drama.isCompleted) {
+      await prisma.drama.update({
+        where: { id: u.id },
+        data: { isCompleted: true, completedAt: now, isNewlyAired: false }
+      })
+      console.log(`  ✅ ${u.title}: 自动标记已完结 (${u.newEp}/${drama.totalEpisodes})`)
+    }
   }
 
   console.log(`[${now.toISOString()}] Updated ${updates.length} episodes:`)

@@ -84,7 +84,13 @@ export default async function Home() {
   return (
     <div className="max-w-[1200px] mx-auto px-4 py-6 space-y-8">
       {/* Hero Banner */}
-      <HeroBanner banners={banners} />
+      <HeroBanner banners={banners} dramas={allDramas.map(d => ({
+        id: d.id, title: d.title, slug: d.slug,
+        totalEpisodes: d.totalEpisodes, currentEpisode: d.currentEpisode,
+        manualEpisode: d.manualEpisode, airDays: d.airDays, airTime: d.airTime,
+        description: d.description, region: d.region, tags: d.tags,
+        isCompleted: d.isCompleted, isOnSchedule: d.isOnSchedule, isNewlyAired: d.isNewlyAired,
+      }))} />
 
       {/* 公告栏 */}
       {announcements && (

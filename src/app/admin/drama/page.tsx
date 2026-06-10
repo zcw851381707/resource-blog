@@ -85,6 +85,7 @@ export default function AdminDrama() {
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [galleryImages, setGalleryImages] = useState<string[]>([])
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
 
   // 重复剧名检测
   const [dupResults, setDupResults] = useState<Drama[]>([])
@@ -150,51 +151,52 @@ export default function AdminDrama() {
     const text = pasteText.trim()
     if (!text) return
 
-    const slots = getDefaultSlots()
+    const slots = [...downloadSlots]
     const updatedForm = { ...form }
 
-    // --- 识别剧名 ---
-    // 匹配 "剧名：xxx" "标题：xxx" "名称：xxx"、"【xxx】" 或 "《xxx》"
-    const titleMatch = text.match(/(?:剧名|标题|名称)[：:]\s*(.+)/)
-    if (titleMatch) {
-      updatedForm.title = titleMatch[1].trim()
-    } else {
-      const bookMatch = text.match(/《(.+?)》/)
-      if (bookMatch) {
-        updatedForm.title = bookMatch[1].trim()
+    // --- 识别剧名（只在标题为空时自动填充）---
+    if (!updatedForm.title) {
+      const titleMatch = text.match(/(?:剧名|标题|名称)[：:]\s*(.+)/)
+      if (titleMatch) {
+        updatedForm.title = titleMatch[1].trim()
       } else {
-        const bracketMatch = text.match(/【(.+?)】/)
-        if (bracketMatch) updatedForm.title = bracketMatch[1].trim()
+        const bookMatch = text.match(/《(.+?)》/)
+        if (bookMatch) {
+          updatedForm.title = bookMatch[1].trim()
+        } else {
+          const bracketMatch = text.match(/【(.+?)】/)
+          if (bracketMatch) updatedForm.title = bracketMatch[1].trim()
+        }
       }
     }
 
-    // --- 识别地区 ---
-    // 先检查是否包含"X剧"类关键词
-    if (/泰剧/.test(text)) updatedForm.region = '泰国'
-    else if (/台剧/.test(text)) updatedForm.region = '中国台湾'
-    else if (/华语剧|国语剧/.test(text)) updatedForm.region = '中国'
-    else if (/日剧/.test(text)) updatedForm.region = '日本'
-    else if (/韩剧/.test(text)) updatedForm.region = '韩国'
-
-    // 再检查 "地区：xxx" 等显式标注
+    // --- 识别地区（只在地区为空时自动填充）---
     if (!updatedForm.region) {
-      const regionMatch = text.match(/(?:地区|国家|产地)[：:]\s*(.+)/)
-      if (regionMatch) {
-        const raw = regionMatch[1].trim()
-        if (/中|大陆|内地/.test(raw)) updatedForm.region = '中国'
-        else if (/台|台湾/.test(raw)) updatedForm.region = '中国台湾'
-        else if (/港|香港/.test(raw)) updatedForm.region = '中国香港'
-        else if (/泰/.test(raw)) updatedForm.region = '泰国'
-        else if (/日/.test(raw)) updatedForm.region = '日本'
-        else if (/韩/.test(raw)) updatedForm.region = '韩国'
-        else if (/越/.test(raw)) updatedForm.region = '越南'
-        else if (/缅/.test(raw)) updatedForm.region = '缅甸'
-        else if (/菲/.test(raw)) updatedForm.region = '菲律宾'
-        else if (/新加/.test(raw)) updatedForm.region = '新加坡'
+      if (/泰剧/.test(text)) updatedForm.region = '泰国'
+      else if (/台剧/.test(text)) updatedForm.region = '中国台湾'
+      else if (/华语剧|国语剧/.test(text)) updatedForm.region = '中国'
+      else if (/日剧/.test(text)) updatedForm.region = '日本'
+      else if (/韩剧/.test(text)) updatedForm.region = '韩国'
+
+      if (!updatedForm.region) {
+        const regionMatch = text.match(/(?:地区|国家|产地)[：:]\s*(.+)/)
+        if (regionMatch) {
+          const raw = regionMatch[1].trim()
+          if (/中|大陆|内地/.test(raw)) updatedForm.region = '中国'
+          else if (/台|台湾/.test(raw)) updatedForm.region = '中国台湾'
+          else if (/港|香港/.test(raw)) updatedForm.region = '中国香港'
+          else if (/泰/.test(raw)) updatedForm.region = '泰国'
+          else if (/日/.test(raw)) updatedForm.region = '日本'
+          else if (/韩/.test(raw)) updatedForm.region = '韩国'
+          else if (/越/.test(raw)) updatedForm.region = '越南'
+          else if (/缅/.test(raw)) updatedForm.region = '缅甸'
+          else if (/菲/.test(raw)) updatedForm.region = '菲律宾'
+          else if (/新加/.test(raw)) updatedForm.region = '新加坡'
+        }
       }
     }
 
-    // --- 识别网盘链接 ---
+    // --- 识别网盘链接：只填充空位，不覆盖已有链接 ---
     const rules: { platform: string; urlRe: RegExp }[] = [
       { platform: '百度网盘', urlRe: /https?:\/\/pan\.baidu\.com\/s\/[^\s]*/i },
       { platform: '夸克网盘', urlRe: /https?:\/\/pan\.quark\.cn\/s\/[^\s]*/i },
@@ -209,9 +211,10 @@ export default function AdminDrama() {
       const match = text.match(rule.urlRe)
       if (match) {
         const idx = slots.findIndex(s => s.platform === rule.platform)
-        if (idx >= 0) {
+        if (idx >= 0 && !slots[idx].url) {
+          // 只填充空的槽位，已有链接的不覆盖
           slots[idx].url = match[0]
-          if (rule.platform === '百度网盘' && extractCode) {
+          if (rule.platform === '百度网盘' && extractCode && !slots[idx].extractCode) {
             slots[idx].extractCode = extractCode
           }
         }
@@ -586,11 +589,54 @@ export default function AdminDrama() {
               {galleryImages.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {galleryImages.map((url, idx) => (
-                    <div key={idx} className="relative group">
-                      <img src={url} alt={`剧照 ${idx + 1}`} className="w-16 h-24 object-cover rounded-lg border border-[var(--border)]" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg transition-colors flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
-                        <button type="button" onClick={() => setCoverFromGallery(url)} className="w-5 h-5 rounded-full bg-white/80 text-[10px] flex items-center justify-center hover:bg-white" title="设为主封面">★</button>
-                        <button type="button" onClick={() => removeGalleryImage(idx)} className="w-5 h-5 rounded-full bg-red-400 text-white text-[10px] flex items-center justify-center hover:bg-red-500" title="删除">×</button>
+                    <div
+                      key={url}
+                      draggable
+                      onDragStart={(e) => {
+                        setDragIdx(idx)
+                        e.dataTransfer.effectAllowed = 'move'
+                        // 拖拽时显示半透明缩略图
+                        const img = e.currentTarget.querySelector('img') as HTMLImageElement | null
+                        if (img) {
+                          e.dataTransfer.setDragImage(img, img.width / 2, img.height / 2)
+                        }
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        e.dataTransfer.dropEffect = 'move'
+                      }}
+                      onDragEnter={(e) => {
+                        e.preventDefault()
+                        if (dragIdx !== null && dragIdx !== idx) {
+                          setGalleryImages(prev => {
+                            const next = [...prev]
+                            const [moved] = next.splice(dragIdx, 1)
+                            next.splice(idx, 0, moved)
+                            return next
+                          })
+                          setDragIdx(idx)
+                        }
+                      }}
+                      onDragEnd={() => setDragIdx(null)}
+                      className={`relative group cursor-grab active:cursor-grabbing transition-all ${
+                        dragIdx === idx ? 'opacity-40 scale-95' : ''
+                      }`}
+                    >
+                      <img src={url} alt={`剧照 ${idx + 1}`} className="w-16 h-24 object-cover rounded-lg border border-[var(--border)] pointer-events-none" />
+                      {/* 序号角标 */}
+                      <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-black/60 text-white text-[9px] font-bold flex items-center justify-center pointer-events-none">
+                        {idx + 1}
+                      </span>
+                      {/* 拖拽手柄提示 */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg transition-colors flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 pointer-events-none">
+                        <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+                        </svg>
+                      </div>
+                      {/* 操作按钮 */}
+                      <div className="absolute -top-1.5 -right-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button type="button" onClick={() => setCoverFromGallery(url)} className="w-4 h-4 rounded-full bg-yellow-400 text-white text-[9px] flex items-center justify-center hover:bg-yellow-500 shadow" title="设为主封面">★</button>
+                        <button type="button" onClick={() => removeGalleryImage(idx)} className="w-4 h-4 rounded-full bg-red-400 text-white text-[9px] flex items-center justify-center hover:bg-red-500 shadow" title="删除">×</button>
                       </div>
                     </div>
                   ))}
@@ -1117,6 +1163,7 @@ export default function AdminDrama() {
           </div>
         </div>
       )}
+
     </div>
   )
 }

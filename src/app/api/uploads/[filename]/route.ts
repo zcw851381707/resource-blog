@@ -1,33 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readFile } from 'fs/promises'
+import { stat } from 'fs/promises'
+import { createReadStream } from 'fs'
 import path from 'path'
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ filename: string }> }) {
+const MIME_TYPES: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.ogg': 'video/ogg',
+}
+
+const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mov', '.ogg'])
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ filename: string }> }) {
   const { filename } = await params
-  // 防止路径穿越
   const safe = path.basename(filename)
   if (safe !== filename) return new NextResponse('Not Found', { status: 404 })
 
   try {
     const filePath = path.join(process.cwd(), 'public', 'uploads', safe)
-    const buf = await readFile(filePath)
-
+    const fileStat = await stat(filePath)
+    const fileSize = fileStat.size
     const ext = path.extname(safe).toLowerCase()
-    const mimeTypes: Record<string, string> = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp',
-      '.svg': 'image/svg+xml',
-      '.ico': 'image/x-icon',
-    }
-    const contentType = mimeTypes[ext] || 'application/octet-stream'
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream'
+    const isVideo = VIDEO_EXTS.has(ext)
 
-    return new NextResponse(buf, {
+    // Handle Range requests (required for video seeking)
+    const rangeHeader = request.headers.get('range')
+    if (rangeHeader) {
+      const parts = rangeHeader.replace(/bytes=/, '').split('-')
+      const start = parseInt(parts[0], 10)
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1
+      const chunkSize = end - start + 1
+
+      const stream = createReadStream(filePath, { start, end })
+      return new NextResponse(stream as unknown as BodyInit, {
+        status: 206,
+        headers: {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': String(chunkSize),
+          'Content-Type': contentType,
+          'Cache-Control': isVideo ? 'public, max-age=86400' : 'public, max-age=31536000, immutable',
+        },
+      })
+    }
+
+    // Full file response
+    const stream = createReadStream(filePath)
+    return new NextResponse(stream as unknown as BodyInit, {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Content-Length': String(fileSize),
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': isVideo ? 'public, max-age=86400' : 'public, max-age=31536000, immutable',
       },
     })
   } catch {

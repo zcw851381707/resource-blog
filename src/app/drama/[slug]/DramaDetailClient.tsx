@@ -13,6 +13,7 @@ interface DramaInfo {
   coverImage?: string | null
   region?: string | null
   isCompleted?: boolean
+  completedAt?: string | null
   isOnSchedule?: boolean
   isNewlyAired?: boolean
   isUpcoming?: boolean
@@ -75,6 +76,17 @@ function getUpcomingLabel(dateStr?: string | null, precision?: string | null): s
 
 function getEpisodeLabel(d: DramaInfo): string {
   if (d.isCompleted) {
+    // 有完结日期且完结不满一个月 → "已完结，共X集"
+    if (d.completedAt) {
+      const completedDate = new Date(d.completedAt)
+      const oneMonthLater = new Date(completedDate)
+      oneMonthLater.setMonth(oneMonthLater.getMonth() + 1)
+      if (new Date() < oneMonthLater) {
+        if (d.totalEpisodes) return `已完结，共${d.totalEpisodes}集`
+        return '已完结'
+      }
+    }
+    // 完结满一个月或无完结日期 → "全X集"
     if (d.totalEpisodes) return `全${d.totalEpisodes}集`
     return '已完结'
   }

@@ -136,6 +136,11 @@ function DramaItem({ drama, dayIndex }: { drama: DramaData; dayIndex: number }) 
       }
     }
   }
+  // 已完结剧集的展示集数不超总集数
+  const totalEp = drama.totalEpisodes || 0
+  if (displayEp && totalEp > 0 && displayEp > totalEp) {
+    displayEp = totalEp
+  }
 
   const handleClick = (e: React.MouseEvent) => {
     if (window.innerWidth >= 768) {
@@ -415,7 +420,8 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
     return () => clearInterval(timer)
   }, [])
 
-  // 播出后排序：未播 → 播完30分内 → 播完超30分，停播剧排最后
+  // 播出后排序：未播 → 即将播出(置顶) → 播完1小时内 → 播完超1小时，停播剧排最后
+  // 规则：如果有任何剧进入"10分钟内播出"窗口，所有已播完但还在1小时内的剧直接挤到最后
   function sortByAiring(dramas: DramaData[], dayIndex: number): DramaData[] {
     const isPaused = (d: DramaData) => {
       const paused = (d.pausedDays || '').split(',').map(s => s.trim()).filter(Boolean)
@@ -423,6 +429,14 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
     }
     const now = new Date()
     const nowMins = now.getHours() * 60 + now.getMinutes()
+
+    // 检查是否有剧即将播出（10分钟内）
+    const hasIncoming = dramas.some(d => {
+      if (!d.airTime || isPaused(d)) return false
+      const airMins = parseInt(d.airTime.split(':')[0]) * 60 + parseInt(d.airTime.split(':')[1])
+      return nowMins >= airMins - 10 && nowMins < airMins
+    })
+
     return [...dramas].sort((a, b) => {
       // 停播剧排最后
       if (isPaused(a) !== isPaused(b)) return isPaused(a) ? 1 : -1
@@ -431,12 +445,14 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
         const getPriority = (d: DramaData) => {
           if (!d.airTime || isPaused(d)) return 2
           const airMins = parseInt(d.airTime.split(':')[0]) * 60 + parseInt(d.airTime.split(':')[1])
-          if (nowMins < airMins - 10) return 0       // 未播
+          if (nowMins < airMins - 10) return 0       // 未播（距离开播 > 10分钟）
           if (nowMins < airMins) return -1            // 10分钟内 → 置顶
-          if (nowMins < airMins + 30) return 0        // 播完30分内 → 保持原位
-          return 1                                     // 播完超30分 → 末尾
+          // 已播完：如果有其他剧即将播出，直接挤到最后
+          if (hasIncoming) return 1
+          if (nowMins < airMins + 60) return 0        // 播完1小时内 → 保持原位
+          return 1                                     // 播完超1小时 → 末尾
         }
-        // 全部播完超30分钟后，恢复正常时间排序
+        // 全部播完超1小时后，恢复正常时间排序
         const allDone = dramas.filter(d => !isPaused(d) && d.airTime).every(d => getPriority(d) >= 1)
         if (!allDone) {
           const pa = getPriority(a)
@@ -685,6 +701,10 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                                       displayEp = 1
                                     }
                                   }
+                                }
+                                // 已完结剧集展示集数不超总集数
+                                if (displayEp && d.totalEpisodes && d.totalEpisodes > 0 && displayEp > d.totalEpisodes) {
+                                  displayEp = d.totalEpisodes
                                 }
                                 const total = d.totalEpisodes || 0
                                 const posterPaused = isPausedDay

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import VisitTracker from "@/components/VisitTracker";
+import PullToRefresh from "@/components/PullToRefresh";
 import { SiteHeader, SiteFooter, SiteMobileNav } from "@/components/SiteChrome";
 
 export const viewport: Viewport = {
@@ -42,7 +43,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <VisitTracker />
         <SiteHeader />
-        <main className="flex-1 pb-2 md:pb-0">{children}</main>
+        <main className="flex-1 pb-2 md:pb-0">
+          <PullToRefresh>{children}</PullToRefresh>
+        </main>
         <SiteMobileNav />
         <SiteFooter />
       </body>
