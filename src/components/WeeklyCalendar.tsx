@@ -105,17 +105,17 @@ function DramaItem({ drama, dayIndex, weekDates }: { drama: DramaData; dayIndex:
       const pausedIndices = (drama.pausedDays || '').split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
       const targetDate = weekDates[dayIndex]
       const startDate = new Date(drama.startDate)
+      startDate.setHours(0, 0, 0, 0) // 归零到本地时间，避免 UTC 时区偏移
 
       // 正向数：从开播日到目标日，一共多少个播出日
       let totalAirings = 0
       const cursor = new Date(startDate)
-      cursor.setHours(0, 0, 0, 0)
       const endDate = new Date(targetDate)
       endDate.setHours(23, 59, 59, 999)
 
       while (cursor <= endDate) {
         const cursorIdx = cursor.getDay() === 0 ? 6 : cursor.getDay() - 1
-        if (airDayIndices.includes(cursorIdx) && cursor >= startDate) {
+        if (airDayIndices.includes(cursorIdx)) {
           if (!pausedIndices.includes(cursorIdx)) {
             totalAirings++
           }
@@ -689,14 +689,14 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                                     const pausedIndices2 = (d.pausedDays || '').split(',').map((s: string) => parseInt(s.trim())).filter((n: number) => !isNaN(n))
                                     const targetDate = weekDates[idx]
                                     const start = new Date(d.startDate)
+                                    start.setHours(0, 0, 0, 0)
                                     let count = 0
                                     const cursor = new Date(start)
-                                    cursor.setHours(0, 0, 0, 0)
                                     const end = new Date(targetDate)
                                     end.setHours(23, 59, 59, 999)
                                     while (cursor <= end) {
                                       const ci = cursor.getDay() === 0 ? 6 : cursor.getDay() - 1
-                                      if (airDayIndices.includes(ci) && cursor >= start && !pausedIndices2.includes(ci)) {
+                                      if (airDayIndices.includes(ci) && !pausedIndices2.includes(ci)) {
                                         count++
                                       }
                                       cursor.setDate(cursor.getDate() + 1)
