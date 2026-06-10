@@ -49,3 +49,11 @@ next-env.d.ts
 
 # uploaded files
 /public/uploads/
+/public/timeline.html
+
+# backup files
+*.bak
+
+# project reports
+/项目功能汇报.html
+/字体/
