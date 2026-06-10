@@ -1,7 +1,26 @@
 import { cookies } from 'next/headers'
 import { SignJWT, jwtVerify } from 'jose'
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'dev-secret-change-in-production')
+let _secret: Uint8Array | null = null
+
+function getSecret(): Uint8Array {
+  if (_secret) return _secret
+  const key = process.env.JWT_SECRET
+  if (!key) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET 环境变量未设置！上线前必须配置。')
+    }
+    _secret = new TextEncoder().encode('dev-secret-local-only')
+    return _secret
+  }
+  if (key.length < 32) {
+    throw new Error('JWT_SECRET 太短，至少需要 32 个字符')
+  }
+  _secret = new TextEncoder().encode(key)
+  return _secret
+}
+
+const secret = getSecret()
 
 export async function createToken(payload: { username: string }) {
   return new SignJWT(payload)

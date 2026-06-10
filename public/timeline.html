@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>追剧资源站 — 开发时间线</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --brand: #58a6ff;
+    --green: #3fb950;
+    --orange: #d29922;
+    --red: #f85149;
+    --purple: #a371f7;
+    --pink: #db61a2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+    line-height: 1.6;
+  }
+  .hero {
+    text-align: center;
+    padding: 80px 20px 60px;
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a1f2e 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  .hero h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--brand), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+  .hero p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+  }
+  .stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 30px;
+  }
+  .stat { text-align: center; }
+  .stat-num { font-size: 2rem; font-weight: 700; color: var(--brand); }
+  .stat-label { font-size: 0.85rem; color: var(--text-muted); }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 40px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .phase { margin-bottom: 50px; }
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .phase-dot {
+    position: absolute;
+    left: -31px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 3px solid var(--brand);
+    background: var(--bg);
+    z-index: 1;
+  }
+  .phase-num {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 20px;
+    background: rgba(88,166,255,0.15);
+    color: var(--brand);
+  }
+  .phase-date {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .phase-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .entry {
+    position: relative;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    transition: border-color 0.2s;
+  }
+  .entry:hover { border-color: var(--brand); }
+  .entry-dot {
+    position: absolute;
+    left: -31px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    top: 18px;
+  }
+  .entry-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .tag-feature { background: rgba(63,185,80,0.15); color: var(--green); }
+  .tag-bug { background: rgba(248,81,73,0.15); color: var(--red); }
+  .tag-infra { background: rgba(163,113,247,0.15); color: var(--purple); }
+  .tag-ui { background: rgba(219,97,162,0.15); color: var(--pink); }
+
+  .entry-body { flex: 1; min-width: 0; }
+  .entry-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
+  .entry-desc { font-size: 0.82rem; color: var(--text-muted); }
+
+  .bug-root {
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: rgba(248,81,73,0.06);
+    border-left: 2px solid var(--red);
+    border-radius: 0 6px 6px 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+  .bug-root strong { color: var(--orange); }
+
+  footer {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 2rem; }
+    .stats { gap: 20px; }
+    .entry { flex-direction: column; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>追剧资源站 — 开发时间线</h1>
+  <p>从 Next.js 脚手架到功能完整的追剧资源网站</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-num">20</div><div class="stat-label">开发天数</div></div>
+    <div class="stat"><div class="stat-num">70+</div><div class="stat-label">源文件</div></div>
+    <div class="stat"><div class="stat-num">30+</div><div class="stat-label">API 路由</div></div>
+    <div class="stat"><div class="stat-num">11</div><div class="stat-label">已修复 Bug</div></div>
+  </div>
+</div>
+
+<div class="container">
+<div class="timeline">
+
+<!-- Phase 1 -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-dot"></div>
+    <span class="phase-num">Phase 1</span>
+    <span class="phase-date">5 月 22 – 23</span>
+    <span class="phase-title">项目地基</span>
+  </div>
+
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-infra">基础</span>
+    <div class="entry-body">
+      <div class="entry-title">Next.js 项目初始化</div>
+      <div class="entry-desc">Create Next App 脚手架，TypeScript + Tailwind CSS + App Router</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-infra">基础</span>
+    <div class="entry-body">
+      <div class="entry-title">Prisma + SQLite 数据库</div>
+      <div class="entry-desc">数据库 schema 设计，seed 数据脚本，Prisma Client 封装</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-infra">基础</span>
+    <div class="entry-body">
+      <div class="entry-title">登录认证系统</div>
+      <div class="entry-desc">JWT 登录/登出/状态检查，requireAuth 中间件，admin 路由保护</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">公告 + 社交链接 + 访问追踪</div>
+      <div class="entry-desc">AnnouncementBar 组件，Socials CRUD，VisitTracker 页面访问计数</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-ui">UI</span>
+    <div class="entry-body">
+      <div class="entry-title">主题切换 + DramaBanner + WeeklySchedule</div>
+      <div class="entry-desc">深色/浅色主题切换，热播剧 Banner 网格，周更排期组件</div>
+    </div>
+  </div>
+</div>
+
+<!-- Phase 2 -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-dot"></div>
+    <span class="phase-num">Phase 2</span>
+    <span class="phase-date">5 月 24 – 31</span>
+    <span class="phase-title">后台管理 + 社交互动</span>
+  </div>
+
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">系统设置 + 主题持久化</div>
+      <div class="entry-desc">Admin 设置页面，站点名称/描述/Logo 配置，ThemeToggle 完善</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-ui">UI</span>
+    <div class="entry-body">
+      <div class="entry-title">HomeSkeleton 加载态</div>
+      <div class="entry-desc">首页骨架屏，改善 CLS 和用户感知加载速度</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">求片系统 + 社交链接管理</div>
+      <div class="entry-desc">用户提交求片请求，admin 审核/回复；社交链接图标+链接 CRUD</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-ui">UI</span>
+    <div class="entry-body">
+      <div class="entry-title">UpcomingList + ScrollReveal + SocialSection</div>
+      <div class="entry-desc">即将上线剧集列表，滚动渐入动画，社交链接展示区</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-infra">基础</span>
+    <div class="entry-body">
+      <div class="entry-title">Admin 仪表盘 + 布局</div>
+      <div class="entry-desc">管理员首页概览，admin 统一侧边栏布局</div>
+    </div>
+  </div>
+</div>
+
+<!-- Phase 3 -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-dot"></div>
+    <span class="phase-num">Phase 3</span>
+    <span class="phase-date">6 月 3 – 6</span>
+    <span class="phase-title">搜索 + 分类 + 数据系统</span>
+  </div>
+
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">死链报告系统 + 排期页面</div>
+      <div class="entry-desc">用户提交失效链接，admin 处理；周更排期独立页面</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">统计面板 + 验证码</div>
+      <div class="entry-desc">Admin 访问统计图表，表单验证码防刷</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">搜索系统</div>
+      <div class="entry-desc">全站剧集搜索 API + 搜索结果页面，支持中文/拼音模糊匹配</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-ui">UI</span>
+    <div class="entry-body">
+      <div class="entry-title">剧集展示组件矩阵</div>
+      <div class="entry-desc">DramaCard, DramaGrid, RegionSection, FullRowGrid, HorizontalSlider — 5 种布局组件覆盖不同展示场景</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">自动生成海报</div>
+      <div class="entry-desc">Canvas 生成剧集分享海报，含标题/集数/二维码</div>
+    </div>
+  </div>
+</div>
+
+<!-- Phase 4 -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-dot"></div>
+    <span class="phase-num">Phase 4</span>
+    <span class="phase-date">6 月 7</span>
+    <span class="phase-title">社区互动 + SEO + 合规</span>
+  </div>
+
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">求片公开页面</div>
+      <div class="entry-desc">用户可见的求片列表 + 提交表单，含验证码和状态追踪</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">分享弹窗 + 导航系统</div>
+      <div class="entry-desc">ShareModal 一键复制链接/生成海报，NavLinks + SiteChrome 全局导航框架</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-infra">基础</span>
+    <div class="entry-body">
+      <div class="entry-title">免责声明页面</div>
+      <div class="entry-desc">法律合规：内容来源声明、侵权联系渠道</div>
+    </div>
+  </div>
+</div>
+
+<!-- Phase 5 -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-dot"></div>
+    <span class="phase-num">Phase 5</span>
+    <span class="phase-date">6 月 8 – 9</span>
+    <span class="phase-title">剧集管理 + Banner 重构 + 文件上传</span>
+  </div>
+
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">剧集后台管理系统</div>
+      <div class="entry-desc">Admin 剧集 CRUD，含标题/简介/封面/标签/地区/排期/集数，自动 slug 生成</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">剧集详情页 + 排期引擎</div>
+      <div class="entry-desc">DramaDetailClient 完整详情页，drama-schedule 排期计算引擎（播出日/时间/追剧状态）</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">Banner 系统大重构</div>
+      <div class="entry-desc">新增 mediaType 字段支持图片/视频双模式，Banner CRUD API，关联剧集自动同步标题</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">文件上传系统</div>
+      <div class="entry-desc">图片/视频上传 API，客户端视频校验（≤300MB / ≤3min），自动截取视频封面，HTTP 206 Range 视频流服务</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-ui">UI</span>
+    <div class="entry-body">
+      <div class="entry-title">首页改版 + PullToRefresh + WeeklyCalendar</div>
+      <div class="entry-desc">全新首页布局，移动端下拉刷新，周更日历视图</div>
+    </div>
+  </div>
+
+  <!-- Bugs in Phase 5 -->
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">视频 Banner 不播放</div>
+      <div class="entry-desc">视频渲染代码放在 if (hasImage) 分支里，视频 banner 没有 image 字段，永远走不到视频代码</div>
+      <div class="bug-root"><strong>根因：</strong>新增类型时条件链位置错误，提前 return 截断后续逻辑</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">点击声音按钮却切换页面</div>
+      <div class="entry-desc">声音按钮和导航箭头同 z-index=20，DOM 顺序导致导航覆盖按钮，点击穿透</div>
+      <div class="bug-root"><strong>根因：</strong>相同 z-index 时 DOM 顺序决定堆叠，e.stopPropagation() 阻止不了 hit test</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">移动端轮播永久卡住</div>
+      <div class="entry-desc">触屏 mouseEnter 触发 paused=true 后永远不触发 mouseLeave，轮播停止</div>
+      <div class="bug-root"><strong>根因：</strong>mouseEnter/mouseLeave 在触屏设备不可靠，需用 hover+pointer 媒体查询判断设备能力</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">视频回声/重声</div>
+      <div class="entry-desc">每个 banner 渲染 4 个 video 元素（renderBanner 内 2 套布局 × 外层 2 个容器），display:none 不停止播放</div>
+      <div class="bug-root"><strong>根因：</strong>JSX 放在两处 = 两个独立 DOM 实例，display:none 不能可靠停止移动端音频</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">轮播过渡期间两个视频同时播放 — 重声</div>
+      <div class="entry-desc">切页动画期间 prev 和 current 同时渲染，两个 video 都在播放</div>
+      <div class="bug-root"><strong>根因：</strong>动画过渡期间多实例共存，需对退场实例强制静音</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">快速切换 Banner 无响应</div>
+      <div class="entry-desc">animatingRef 布尔锁在 600ms 动画期间直接忽略所有点击，快速连点只有第一次生效</div>
+      <div class="bug-root"><strong>根因：</strong>不要用布尔锁阻止用户操作，用可中断的 setTimeout 模式</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">轮播间隔太短，视频没看清就切走</div>
+      <div class="entry-desc">基础间隔 5.6s → 8.6s，视频额外 +6s，setInterval 改为动态递归 setTimeout</div>
+    </div>
+  </div>
+</div>
+
+<!-- Phase 6 -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-dot"></div>
+    <span class="phase-num">Phase 6</span>
+    <span class="phase-date">6 月 9 – 10</span>
+    <span class="phase-title">图片定位 Bug 修复（WYSIWYG）</span>
+  </div>
+
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">图片缩放超 280% 后上下拉伸变形</div>
+      <div class="entry-desc">maxWidth 约束 + object-fit:fill 导致高缩放时比例失调</div>
+      <div class="bug-root"><strong>根因：</strong>竖版图在 3:1 容器中需要 height-based 缩放（非 width-based），width:auto 才能保证等比例</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">高缩放时点击拖拽图片跳位/错位</div>
+      <div class="entry-desc">鼠标点一下图片就跳到错误位置，后台乱移</div>
+      <div class="bug-root"><strong>根因：</strong>posRef 初始化后从未更新（useRef 不会自动同步 state），handlePointerDown 读的是过期值</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">Frontend 竖版海报不显示（SSR 闪一下就消失）</div>
+      <div class="entry-desc">刷新瞬间图片可见，hydration 后消失</div>
+      <div class="bug-root"><strong>根因：</strong>旧 buggy 拖拽行为产生了极端 imagePosition 值（如 top:-291%），图片被推出可视区</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">后台拖拽修复后，前台位置与后台不一致</div>
+      <div class="entry-desc">PC 端图片显示位置和在后台调整的位置对不上</div>
+      <div class="bug-root"><strong>根因：</strong>前台 isAutoPortrait 有 maxWidth:65% 而后台没有 → 同一 zoom 值产生不同元素尺寸</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">移动端图片位置全部错乱</div>
+      <div class="entry-desc">移动端用 object-fit:cover 无视 imagePosition，后台定位在移动端完全无效</div>
+      <div class="bug-root"><strong>根因：</strong>移动端 5:4 容器 ≠ 后台 3:1 容器，不能直接套用百分比。需从 imagePosition 反推焦点坐标，用 object-position 对准</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-bug">Bug</span>
+    <div class="entry-body">
+      <div class="entry-title">横版图左边内容被 mask 隐藏，后台看不到</div>
+      <div class="entry-desc">前台 mask 把图片左边 18% 完全隐藏，但后台预览显示完整图片（只叠加半透明遮罩），所见非所得</div>
+      <div class="bug-root"><strong>根因：</strong>任何 CSS 视觉变换（mask/clip/filter），前后台必须完全同步。mask 最终调整为 8% 全隐 + 8→35% 渐变</div>
+    </div>
+  </div>
+</div>
+
+<!-- Final stats -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-dot"></div>
+    <span class="phase-num">📦</span>
+    <span class="phase-date">截至 6 月 10 日</span>
+    <span class="phase-title">项目全貌</span>
+  </div>
+
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-infra">架构</span>
+    <div class="entry-body">
+      <div class="entry-title">技术栈</div>
+      <div class="entry-desc">Next.js 16 App Router · TypeScript · Prisma + SQLite · Tailwind CSS · 纯自托管（无第三方 PaaS）</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">前台页面</div>
+      <div class="entry-desc">首页 · 剧集详情 · 全部剧集 · 排期表 · 搜索 · 求片 · 免责声明 — 7 个公开页面</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-feature">功能</span>
+    <div class="entry-body">
+      <div class="entry-title">后台管理</div>
+      <div class="entry-desc">仪表盘 · 剧集管理 · Banner 管理 · 公告管理 · 社交链接 · 求片处理 · 死链报告 · 访问统计 · 系统设置 — 9 个管理页面</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-infra">基础</span>
+    <div class="entry-body">
+      <div class="entry-title">API 路由</div>
+      <div class="entry-desc">Auth · Banners · Drama · Announcements · Socials · Requests · Link Reports · Stats · Settings · Upload · Search · Visit · Captcha · Notify — 14 组 API</div>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="entry-dot"></div>
+    <span class="entry-tag tag-ui">UI</span>
+    <div class="entry-body">
+      <div class="entry-title">组件库</div>
+      <div class="entry-desc">23 个可复用组件，覆盖轮播、卡片、网格、弹窗、骨架屏、滚动动画、下拉刷新、日历等</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- .timeline -->
+</div><!-- .container -->
+
+<footer>
+  追剧资源站 — 从 2026-05-22 到 2026-06-10，20 天，单人全栈开发<br>
+  共修复 11 个已记录的 Bug，均附根因分析
+</footer>
+
+</body>
+</html>

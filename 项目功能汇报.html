@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>追剧资源站 — 功能汇报</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --accent: #4f46e5;
+    --border: #e5e7eb;
+    --tag-bg: #eef2ff;
+    --tag-text: #4338ca;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 2rem 1rem;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 {
+    font-size: 2rem;
+    text-align: center;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--muted);
+    margin-bottom: 2.5rem;
+    font-size: 0.95rem;
+  }
+  h2 {
+    font-size: 1.35rem;
+    margin: 2.5rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  h3 {
+    font-size: 1.1rem;
+    margin: 1.5rem 0 0.5rem;
+    color: #374151;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .card p { margin-bottom: 0.5rem; }
+  .card p:last-child { margin-bottom: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.75rem; }
+  .grid .card { margin-bottom: 0; }
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+    padding: 0.15rem 0.6rem;
+    border-radius: 99px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-right: 0.3rem;
+  }
+  ul { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin-bottom: 0.3rem; }
+  strong { color: #111827; }
+  .section-desc { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+  .footer {
+    text-align: center;
+    color: var(--muted);
+    margin-top: 3rem;
+    font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>📺 追剧资源站 — 功能汇报</h1>
+<p class="subtitle">晨光曦·分享站 &nbsp;|&nbsp; 截至 2026 年 6 月 9 日</p>
+
+<!-- ====== 前台 ====== -->
+<h2>🏠 前台页面（8 个页面）</h2>
+
+<h3>1. 首页</h3>
+<div class="card">
+  <p><strong>Banner 轮播系统</strong> — 支持图片和视频两种媒体类型。视频 Banner 默认静音自动播放，右下角声音开关，打开声音后播完自动切页。轮播支持拖拽滑动、左右箭头、底部圆点导航。图片 Banner 支持竖版多图模式、随机中文字体标题、海报位置微调。</p>
+  <p><strong>公告栏</strong> — 顶部滚动公告，可关闭，支持生成海报分享。</p>
+  <p><strong>追剧日历</strong> — 首页嵌入本周日历组件，展示每天播出的剧集，含时段标识（已播/热播中/待播）。</p>
+  <p><strong>最新上线</strong> — 全宽横向排列，展示最近更新的剧集。</p>
+  <p><strong>即将上线</strong> — 横向滑动组件，带时间线标签和首播日期。</p>
+  <p><strong>地区分类</strong> — 按中国大陆、泰剧、韩剧、日剧、其他地区分组展示，每组可展开查看更多。</p>
+  <p><strong>社交媒体区</strong> — 展示各平台入口和二维码。</p>
+</div>
+
+<h3>2. 全部剧集</h3>
+<div class="card">
+  <p>响应式网格布局（移动端 3 列，桌面端 6 列）。支持按地区筛选（中国大陆/泰剧/韩剧/日剧/其他）和按状态筛选（全部/追剧中/最新上线/即将上线）。按点击热度排序。每张卡片展示封面、集数进度、完结/新播标签。</p>
+</div>
+
+<h3>3. 剧集详情页</h3>
+<div class="card">
+  <p><strong>基本信息</strong> — 封面海报（支持位置微调）、标题、原名、地区标签、状态标签（追剧中/已完结/新播/暂停）。</p>
+  <p><strong>播出信息</strong> — 播出日期、播出时间、更新频率、总集数、当前进度（含手动修正）。</p>
+  <p><strong>网盘下载</strong> — 按平台分组展示（夸克网盘/百度网盘/UC网盘/迅雷），每个链接含提取码，支持一键复制链接和提取码。</p>
+  <p><strong>视频播放</strong> — 支持嵌入视频链接，在线观看。</p>
+  <p><strong>图库</strong> — 多图浏览，点击放大查看。</p>
+  <p><strong>同系列</strong> — 同一系列剧集自动关联展示。</p>
+  <p><strong>相关推荐</strong> — 同地区、同标签的推荐剧集。</p>
+  <p><strong>打赏</strong> — 底部展示赞赏二维码。</p>
+  <p><strong>链接报错</strong> — 用户可报告失效链接，选择问题类型（链接失效/提取码错误/文件被删等）。</p>
+  <p><strong>分享</strong> — 复制链接、系统分享 API、添加到主屏幕引导。</p>
+</div>
+
+<h3>4. 追剧日历</h3>
+<div class="card">
+  <p>全屏 7 天日历视图。每一天展示当日播出的剧集列表，含播出时间、集数信息。右侧时间线标识（已播/正在播出/即将播出），当前正在播出的剧集有实时高亮指示器。支持点击跳转剧集详情。</p>
+</div>
+
+<h3>5. 搜索</h3>
+<div class="card">
+  <p>实时模糊搜索，300ms 防抖。同时搜索中文标题和原名，按热度排序。未搜索时展示热门推荐 TOP 10。无结果时引导用户前往许愿池提交资源请求。</p>
+</div>
+
+<h3>6. 追剧许愿池</h3>
+<div class="card">
+  <p>三个标签页：<strong>许愿</strong>（提交想看的剧）、<strong>资源共享</strong>（分享下载链接）、<strong>建议反馈</strong>（提建议）。</p>
+  <p>含算术验证码、IP 每日限制（10 次/天）。许愿支持点赞（其他用户可点赞支持），管理员可公开回复。去重检测避免重复许愿。</p>
+</div>
+
+<h3>7. 免责声明</h3>
+<div class="card">
+  <p>版权声明、DMCA 联系方式、用户条款、18 岁以上限制声明。</p>
+</div>
+
+<!-- ====== 后台 ====== -->
+<h2>🔧 后台管理系统（8 个模块）</h2>
+
+<div class="section-desc">所有后台接口均需 JWT 认证（7 天有效期），密码 bcrypt 加密存储。</div>
+
+<div class="grid">
+  <div class="card">
+    <h3>📋 剧集管理</h3>
+    <p>完整 CRUD。管理所有剧集字段：标题、原名、地区、标签、播出时间、更新频率、总集数/当前集数、封面图上传、图库拖拽排序。4 个网盘平台链接管理。完结操作、暂停/恢复状态。重复剧集检测。</p>
+  </div>
+
+  <div class="card">
+    <h3>🎬 Banner 管理</h3>
+    <p>新增/编辑/删除首页横幅。支持 <strong>图片模式</strong>（渐变色、文字叠加、竖版多图、海报位置微调）和 <strong>视频模式</strong>（mp4/webm/mov，≤300MB，≤3 分钟，自动截取封面帧）。拖拽排序，启用/禁用。</p>
+  </div>
+
+  <div class="card">
+    <h3>📊 数据统计</h3>
+    <p>PV/UV 总量和日趋势图。设备分布（手机/平板/电脑/爬虫）。页面访问排行。TOP 10 热门剧集。自定义日期范围筛选。自动生成统计海报（Canvas 渲染）。</p>
+  </div>
+
+  <div class="card">
+    <h3>💬 请求管理</h3>
+    <p>查看用户许愿/分享/反馈。按类型筛选。管理员回复、标记已处理、删除。展示点赞数。</p>
+  </div>
+
+  <div class="card">
+    <h3>🔗 链接报错管理</h3>
+    <p>查看失效链接报告（含剧集名、平台、问题类型、用户备注）。标记已处理。直接更新替换链接 URL。</p>
+  </div>
+
+  <div class="card">
+    <h3>📢 公告管理</h3>
+    <p>新增/删除公告。启用/禁用切换。公告在首页顶部滚动展示。</p>
+  </div>
+
+  <div class="card">
+    <h3>🔗 社交链接管理</h3>
+    <p>CRUD 社交媒体入口。支持名称、图标、链接、二维码图片。排序。</p>
+  </div>
+
+  <div class="card">
+    <h3>⚙️ 站点设置</h3>
+    <p>打赏二维码、打赏按钮文案、公众号推广图片。飞书通知 Webhook 配置（App ID、Secret、Chat ID）。</p>
+  </div>
+</div>
+
+<!-- ====== 系统能力 ====== -->
+<h2>⚡ 系统能力</h2>
+
+<div class="grid">
+  <div class="card">
+    <h3>🌓 深色模式</h3>
+    <p>深色/浅色主题切换，跟随系统偏好，本地存储记忆选择。</p>
+  </div>
+  <div class="card">
+    <h3>📱 移动端适配</h3>
+    <p>全站响应式。移动端底部导航栏、下拉刷新（含音效反馈）、触摸滑动切换 Banner。</p>
+  </div>
+  <div class="card">
+    <h3>🔐 安全防护</h3>
+    <p>JWT 认证 + bcrypt。后台接口鉴权。前端表单含算术验证码。IP 频率限制。上传文件类型和大小校验。</p>
+  </div>
+  <div class="card">
+    <h3>📈 访问统计</h3>
+    <p>全站 PV/UV 追踪。自动记录访问路径、IP、设备类型。区分爬虫流量。</p>
+  </div>
+  <div class="card">
+    <h3>🔔 飞书通知</h3>
+    <p>定时检测当日播出剧集，通过飞书机器人推送卡片消息。支持配置 Webhook、App 凭证、目标群组。</p>
+  </div>
+  <div class="card">
+    <h3>🗂️ 文件管理</h3>
+    <p>统一上传接口（图片 ≤10MB，视频 ≤300MB）。Range 请求支持视频拖动进度条。孤儿文件自动清理。</p>
+  </div>
+  <div class="card">
+    <h3>🔍 SEO</h3>
+    <p>每个剧集独立 URL（slug）。服务端渲染。剧集详情页完整 meta 信息。</p>
+  </div>
+  <div class="card">
+    <h3>🖼️ 海报生成</h3>
+    <p>统计海报自动生成（html-to-image）。公告栏分享海报。视频封面自动截帧。</p>
+  </div>
+</div>
+
+<!-- ====== 数据库 ====== -->
+<h2>🗄️ 数据模型（SQLite + Prisma，10 个表）</h2>
+
+<div class="grid">
+  <div class="card"><span class="tag">User</span> 管理员账号</div>
+  <div class="card"><span class="tag">Drama</span> 剧集（40+ 字段，含播出日程、状态、图库）</div>
+  <div class="card"><span class="tag">DownloadLink</span> 网盘下载链接（4 平台）</div>
+  <div class="card"><span class="tag">Banner</span> 首页轮播（图片/视频）</div>
+  <div class="card"><span class="tag">Announcement</span> 公告</div>
+  <div class="card"><span class="tag">SocialLink</span> 社交媒体入口</div>
+  <div class="card"><span class="tag">SiteSettings</span> 全局配置 + 飞书</div>
+  <div class="card"><span class="tag">VisitLog</span> 访问日志</div>
+  <div class="card"><span class="tag">ResourceRequest</span> 用户许愿/分享/反馈</div>
+  <div class="card"><span class="tag">LinkReport</span> 失效链接报告</div>
+</div>
+
+<!-- ====== 技术栈 ====== -->
+<h2>🛠️ 技术栈</h2>
+
+<div class="card">
+  <p>
+    <span class="tag">Next.js 16</span>
+    <span class="tag">React 19</span>
+    <span class="tag">TypeScript</span>
+    <span class="tag">Prisma</span>
+    <span class="tag">SQLite</span>
+    <span class="tag">Tailwind CSS 4</span>
+    <span class="tag">JWT (jose)</span>
+    <span class="tag">bcrypt</span>
+    <span class="tag">busboy</span>
+    <span class="tag">html-to-image</span>
+  </p>
+  <p style="margin-top: 0.75rem;"><strong>代码规模：</strong>70 个 TypeScript 文件 &nbsp;|&nbsp; <strong>数据库：</strong>SQLite（零配置，单文件部署） &nbsp;|&nbsp; <strong>部署：</strong>VPS 服务器</p>
+</div>
+
+<div class="footer">
+  <p>以上为追剧资源站从立项至今的完整功能清单。</p>
+</div>
+
+</div>
+</body>
+</html>
