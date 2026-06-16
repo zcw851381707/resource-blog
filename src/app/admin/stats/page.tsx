@@ -316,14 +316,15 @@ export default function AdminStats() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: '区间 PV', val: stats?.periodPv ?? 0 },
-          { label: '区间 UV', val: stats?.periodUv ?? 0, acc: true },
-          { label: '全部 PV', val: stats?.totalPv ?? 0 },
-          { label: '全部 UV', val: stats?.totalUv ?? 0 },
+          { label: '区间 PV', val: stats?.periodPv ?? 0, desc: '所选时段页面访问次数' },
+          { label: '区间 UV', val: stats?.periodUv ?? 0, acc: true, desc: '所选时段独立访客人数' },
+          { label: '全部 PV', val: stats?.totalPv ?? 0, desc: '所有时间页面访问总次数' },
+          { label: '全部 UV', val: stats?.totalUv ?? 0, desc: '所有时间独立访客总人数' },
         ].map(s => (
           <div key={s.label} className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4">
             <p className="text-xs text-[var(--text-muted)] mb-1">{s.label}</p>
             <p className={`text-2xl font-bold ${s.acc ? 'text-[var(--brand)]' : 'text-[var(--text-primary)]'}`}>{s.val.toLocaleString()}</p>
+            <p className="text-[10px] text-[var(--text-muted)] mt-1">{s.desc}</p>
           </div>
         ))}
       </div>
@@ -336,8 +337,8 @@ export default function AdminStats() {
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-[var(--border)]">
                   <th className="text-left py-2 text-[var(--text-muted)] font-medium">日期</th>
-                  <th className="text-right py-2 text-[var(--text-muted)] font-medium">PV</th>
-                  <th className="text-right py-2 text-[var(--text-muted)] font-medium">UV</th>
+                  <th className="text-right py-2 text-[var(--text-muted)] font-medium">PV（访问次数）</th>
+                  <th className="text-right py-2 text-[var(--text-muted)] font-medium">UV（访客人数）</th>
                   <th className="hidden md:table-cell py-2"></th>
                 </tr></thead>
                 <tbody>{stats.dailyStats.map(d => {

@@ -12,8 +12,8 @@ export default async function DramaDetailPage({ params }: { params: Promise<{ sl
   if (!drama) notFound()
 
   // 用原始 SQL 获取 videoUrl 和 seriesGroup（绕过 Prisma client 未重新生成的问题）
-  const extraResult = await prisma.$queryRawUnsafe<Array<{ videoUrl: string | null; videoLabel: string | null; seriesGroup: string | null; seriesOrder: number | null; imagePosition: string | null; originalTitle: string | null; scheduleImage: string | null; galleryImages: string | null }>>(
-    `SELECT videoUrl, videoLabel, seriesGroup, seriesOrder, imagePosition, originalTitle, scheduleImage, galleryImages FROM Drama WHERE id = ?`, drama.id
+  const extraResult = await prisma.$queryRawUnsafe<Array<{ videoUrl: string | null; videoLabel: string | null; seriesGroup: string | null; seriesOrder: number | null; imagePosition: string | null; originalTitle: string | null; scheduleImage: string | null; galleryImages: string | null; premiereEpisodes: number | null }>>(
+    `SELECT videoUrl, videoLabel, seriesGroup, seriesOrder, imagePosition, originalTitle, scheduleImage, galleryImages, premiereEpisodes FROM Drama WHERE id = ?`, drama.id
   )
   const videoUrl = extraResult[0]?.videoUrl || null
   const videoLabel = extraResult[0]?.videoLabel || null
@@ -22,6 +22,7 @@ export default async function DramaDetailPage({ params }: { params: Promise<{ sl
   const imagePosition = extraResult[0]?.imagePosition || null
   const originalTitle = extraResult[0]?.originalTitle || null
   const scheduleImage = extraResult[0]?.scheduleImage || null
+  const premiereEpisodes = extraResult[0]?.premiereEpisodes || null
   let galleryImages: string[] = []
   try {
     const raw = extraResult[0]?.galleryImages
@@ -62,6 +63,7 @@ export default async function DramaDetailPage({ params }: { params: Promise<{ sl
         slug: drama.slug,
         coverImage: drama.coverImage,
         region: drama.region,
+        category: drama.category,
         isCompleted: drama.isCompleted,
         completedAt: drama.completedAt?.toISOString() ?? null,
         isOnSchedule: drama.isOnSchedule,
@@ -82,6 +84,8 @@ export default async function DramaDetailPage({ params }: { params: Promise<{ sl
         imagePosition: imagePosition,
         originalTitle: originalTitle,
         scheduleImage: scheduleImage,
+        startDate: drama.startDate?.toISOString() ?? null,
+        premiereEpisodes: premiereEpisodes,
       }}
       seasons={seasons}
       related={related}

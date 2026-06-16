@@ -2,10 +2,13 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { useEffect, useState, useCallback } from 'react'
 
 export default function Logo() {
   const [dark, setDark] = useState(false)
+  const router = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
     const check = () => setDark(document.documentElement.classList.contains('dark'))
@@ -17,8 +20,16 @@ export default function Logo() {
 
   const logoSize = 95 // 两个图统一显示宽度
 
+  // 首页点击 logo → 刷新页面
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    if (pathname === '/') {
+      e.preventDefault()
+      router.refresh()
+    }
+  }, [pathname, router])
+
   return (
-    <Link href="/" className="flex items-center justify-center overflow-hidden relative shrink-0" style={{ width: logoSize, height: 36 }}>
+    <Link href="/" onClick={handleClick} className="flex items-center justify-center overflow-hidden relative shrink-0" style={{ width: logoSize, height: 36 }}>
       {/* 晨 — 亮色模式用 */}
       <Image
         src="/晨.png"

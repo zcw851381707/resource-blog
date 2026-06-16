@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import DramaGrid from '@/components/DramaGrid'
 import ShareModal from '@/components/ShareModal'
+import { isNewlyAiredActive, isRecentlyCompleted } from '@/lib/drama-schedule'
 
 interface DramaInfo {
   id: string
@@ -12,6 +13,7 @@ interface DramaInfo {
   slug: string
   coverImage?: string | null
   region?: string | null
+  category?: string
   isCompleted?: boolean
   completedAt?: string | null
   isOnSchedule?: boolean
@@ -32,6 +34,8 @@ interface DramaInfo {
   imagePosition?: string | null
   originalTitle?: string | null
   scheduleImage?: string | null
+  startDate?: string | null
+  premiereEpisodes?: number | null
 }
 
 // 根据视频链接自动识别平台名称
@@ -76,21 +80,25 @@ function getUpcomingLabel(dateStr?: string | null, precision?: string | null): s
 
 function getEpisodeLabel(d: DramaInfo): string {
   if (d.isCompleted) {
-    // 有完结日期且完结不满一个月 → "已完结，共X集"
+    // 完结 30 天内 → "已完结，共X集"；之后 → "全X集"
     if (d.completedAt) {
       const completedDate = new Date(d.completedAt)
-      const oneMonthLater = new Date(completedDate)
-      oneMonthLater.setMonth(oneMonthLater.getMonth() + 1)
-      if (new Date() < oneMonthLater) {
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - 30)
+      if (completedDate >= cutoff) {
         if (d.totalEpisodes) return `已完结，共${d.totalEpisodes}集`
         return '已完结'
       }
     }
-    // 完结满一个月或无完结日期 → "全X集"
+    // 完结超 30 天或无完结日期
     if (d.totalEpisodes) return `全${d.totalEpisodes}集`
     return '已完结'
   }
-  const ep = d.manualEpisode ?? d.currentEpisode
+  // 首播连更后，已播集数至少是 premiereEpisodes
+  let ep = d.manualEpisode ?? d.currentEpisode
+  if (d.premiereEpisodes && d.startDate && new Date(d.startDate) <= new Date()) {
+    ep = Math.max(ep || 0, d.premiereEpisodes)
+  }
   if (ep && d.totalEpisodes) return `更新至第${ep}集，共${d.totalEpisodes}集`
   if (ep) return `更新至第${ep}集`
   if (d.totalEpisodes) return `全${d.totalEpisodes}集`
@@ -491,13 +499,22 @@ export default function DramaDetailClient({
             {(drama.region || '').split(',').filter(Boolean).map(r => (
               <span key={r} className="px-3 py-1 rounded-full text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)]">{r}</span>
             ))}
-            {drama.isCompleted && (
+            {drama.category === 'movie' && (
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-500/90 text-white">电影</span>
+            )}
+            {drama.category === 'variety' && (
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-pink-500/90 text-white">综艺</span>
+            )}
+            {(!drama.category || drama.category === 'tv') && (
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)]">电视剧</span>
+            )}
+            {isRecentlyCompleted(drama) && (
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-500/90 text-white">已完结</span>
             )}
-            {drama.isOnSchedule && !drama.isCompleted && (
+            {(drama.isOnSchedule || isNewlyAiredActive(drama)) && !drama.isCompleted && !drama.isUpcoming && (
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-500/90 text-white">追剧中</span>
             )}
-            {drama.isNewlyAired && (
+            {isNewlyAiredActive(drama) && (
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-500/90 text-white">新播</span>
             )}
             {drama.isUpcoming && getUpcomingLabel(drama.expectedDate, drama.expectedPrecision) && (
@@ -509,7 +526,7 @@ export default function DramaDetailClient({
           </div>
 
           {/* 详细信息卡片 */}
-          {(epLabel || drama.airDays || drama.airTime) && (
+          {(epLabel || drama.airDays || drama.airTime || drama.startDate) && (
             <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 space-y-3">
               {epLabel && (
                 <div className="flex items-start gap-3">
@@ -517,23 +534,36 @@ export default function DramaDetailClient({
                   <span className="text-sm text-[var(--text-primary)] font-medium">{epLabel}</span>
                 </div>
               )}
-              {drama.airDays && (
-                <div className="flex items-start gap-3">
-                  <span className="text-xs text-[var(--text-muted)] w-16 shrink-0 pt-0.5">更新日</span>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {drama.airDays.split(',').map(d => (
-                      <span key={d} className="px-2 py-0.5 rounded text-xs bg-[var(--brand-bg)] text-[var(--brand)] font-medium">
-                        {dayNames[parseInt(d)]}
-                      </span>
-                    ))}
+              {drama.isCompleted ? (
+                drama.startDate && (
+                  <div className="flex items-start gap-3">
+                    <span className="text-xs text-[var(--text-muted)] w-16 shrink-0 pt-0.5">上映日期</span>
+                    <span className="text-sm text-[var(--text-primary)]">
+                      {new Date(drama.startDate).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </span>
                   </div>
-                </div>
-              )}
-              {drama.airTime && (
-                <div className="flex items-start gap-3">
-                  <span className="text-xs text-[var(--text-muted)] w-16 shrink-0 pt-0.5">更新时间</span>
-                  <span className="text-sm text-[var(--text-primary)]">{drama.airTime}</span>
-                </div>
+                )
+              ) : (
+                <>
+                  {drama.airDays && (
+                    <div className="flex items-start gap-3">
+                      <span className="text-xs text-[var(--text-muted)] w-16 shrink-0 pt-0.5">更新日</span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {drama.airDays.split(',').map(d => (
+                          <span key={d} className="px-2 py-0.5 rounded text-xs bg-[var(--brand-bg)] text-[var(--brand)] font-medium">
+                            {dayNames[parseInt(d)]}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {drama.airTime && (
+                    <div className="flex items-start gap-3">
+                      <span className="text-xs text-[var(--text-muted)] w-16 shrink-0 pt-0.5">更新时间</span>
+                      <span className="text-sm text-[var(--text-primary)]">{drama.airTime}</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

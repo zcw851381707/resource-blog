@@ -34,6 +34,7 @@ model Drama {
   description       String?
   region            String?
   tags              String?
+  category          String         @default("tv")
   isOnSchedule      Boolean        @default(false)
   isNewlyAired      Boolean        @default(false)
   isUpcoming        Boolean        @default(false)
@@ -59,6 +60,7 @@ model Drama {
   seriesGroup       String?
   seriesOrder       Int?           @default(0)
   episodesPerDay    Int?           @default(1)
+  premiereEpisodes  Int?
   notifiedAt        DateTime?
   lastEpisodeUpdate DateTime?
   imagePosition     String?        @default("center")
@@ -149,7 +151,27 @@ model ResourceRequest {
   likes           Int      @default(0)
   reply           String?
   isProcessed     Boolean  @default(false)
+  isPublic        Boolean  @default(true)
   createdAt       DateTime @default(now())
+}
+
+model Article {
+  id          String    @id @default(uuid())
+  title       String
+  slug        String    @unique
+  content     String
+  coverImage  String?
+  excerpt     String?
+  dramaTitle  String?
+  wechatUrl   String?
+  isPublished   Boolean   @default(false)
+  pinned        Boolean   @default(false)
+  publishedAt   DateTime?
+  imagePosition String?   @default("center")
+  viewCount     Int       @default(0)
+  likes         Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model LinkReport {

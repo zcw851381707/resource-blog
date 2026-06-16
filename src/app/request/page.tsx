@@ -32,12 +32,6 @@ export default function RequestPage() {
 
   // 表单
   const [formName, setFormName] = useState('')
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const q = params.get('q')
-    if (q) { setFormName(q); setShowForm(true) }
-  }, [])
   const [formDesc, setFormDesc] = useState('')
   const [formEmail, setFormEmail] = useState('')
   const [formLink, setFormLink] = useState('')
@@ -51,6 +45,26 @@ export default function RequestPage() {
   const [captchaAnswer, setCaptchaAnswer] = useState('')
   const [captchaError, setCaptchaError] = useState<string | null>(null)
   const [captchaLoading, setCaptchaLoading] = useState(false)
+
+  const loadCaptcha = async () => {
+    setCaptchaLoading(true)
+    setCaptchaError(null)
+    setCaptchaAnswer('')
+    try {
+      const res = await fetch('/api/captcha')
+      const data = await res.json()
+      setCaptchaToken(data.token)
+      setCaptchaQuestion(data.question)
+    } catch { setCaptchaError('获取验证码失败') }
+    setCaptchaLoading(false)
+  }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const q = params.get('q')
+    if (q) { setFormName(q); setShowForm(true); loadCaptcha() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 点赞
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({})
@@ -67,19 +81,6 @@ export default function RequestPage() {
 
   useEffect(() => { load() }, [activeTab])
 
-  const loadCaptcha = async () => {
-    setCaptchaLoading(true)
-    setCaptchaError(null)
-    setCaptchaAnswer('')
-    try {
-      const res = await fetch('/api/captcha')
-      const data = await res.json()
-      setCaptchaToken(data.token)
-      setCaptchaQuestion(data.question)
-    } catch { setCaptchaError('获取验证码失败') }
-    setCaptchaLoading(false)
-  }
-
   const checkDailyLimit = async () => {
     const res = await fetch('/api/requests', { method: 'PUT' })
     const data = await res.json()
@@ -93,6 +94,7 @@ export default function RequestPage() {
       setFormError('提交次数过多，请明日再试')
       return
     }
+    setSubmitted(false)
     setShowForm(true)
     loadCaptcha()
   }
@@ -162,7 +164,7 @@ export default function RequestPage() {
     })
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, confirmDup?: boolean) => {
     e.preventDefault()
     setFormError('')
 
@@ -174,11 +176,12 @@ export default function RequestPage() {
 
     setFormLoading(true)
 
-    const body: Record<string, string> = {
+    const body: Record<string, string | boolean> = {
       type: activeTab,
       captchaToken,
       captchaAnswer: captchaAnswer.trim(),
     }
+    if (confirmDup) body.confirmDuplicate = true
 
     if (activeTab === 'request') {
       body.name = formName; body.description = formDesc; body.email = formEmail
@@ -196,11 +199,27 @@ export default function RequestPage() {
     })
     const data = await res.json()
 
-    if (data.liked) {
-      setItems(prev => prev.map(item =>
-        item.id === data.id ? { ...item, likes: item.likes + 1 } : item
-      ))
-    } else if (res.status === 429) {
+    // 重复检测：弹窗确认
+    if (res.status === 409 && data.duplicate) {
+      setFormLoading(false)
+      if (confirm(`「${data.existingName}」已经有人提交过了（${data.existingLikes} 人想要）\n\n要继续提交吗？你的提交会为这个心愿增加热度。`)) {
+        handleSubmit(e, true)
+      }
+      return
+    }
+
+    // 确认提交重复
+    if (data.confirmDuplicate) {
+      setSubmitMsg('已为这个心愿增加热度！')
+      setSubmitted(true)
+      resetForm()
+      loadCaptcha()
+      load()
+      setFormLoading(false)
+      return
+    }
+
+    if (res.status === 429) {
       setFormError(data.error || '提交次数过多，请明日再试')
       setFormLoading(false)
       return
@@ -211,14 +230,16 @@ export default function RequestPage() {
       return
     } else {
       const msgs: Record<string, string> = {
-        request: '心愿已许下！我们会尽快处理',
-        share: '感谢分享！我们会尽快审核并上架资源',
+        request: '心愿已许下！审核通过后将公开展示',
+        share: '感谢分享！你的资源仅有管理员可见，审核后会上架',
         feedback: '感谢你的建议！',
       }
       setSubmitMsg(msgs[activeTab] || '提交成功')
       setSubmitted(true)
       setDailyRemaining(data.remaining ?? null)
-      setTimeout(() => { setSubmitted(false); resetForm(); load() }, 1500)
+      resetForm()
+      loadCaptcha()
+      load()
     }
     setFormLoading(false)
   }
@@ -386,7 +407,7 @@ export default function RequestPage() {
       <div className="flex gap-1 bg-[var(--bg-secondary)] rounded-xl p-1 mb-4">
         {tabs.map(tab => (
           <button key={tab.key}
-            onClick={() => { setActiveTab(tab.key); setShowForm(false) }}
+            onClick={() => { setActiveTab(tab.key); setShowForm(false); setSubmitted(false) }}
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === tab.key
                 ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
@@ -397,13 +418,6 @@ export default function RequestPage() {
         ))}
       </div>
 
-      {!showForm && !submitted && (
-        <button onClick={handleOpenForm}
-          className="w-full py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:text-[var(--brand)] hover:border-[var(--brand)] transition-all mb-4">
-          + {activeTab === 'request' ? '许下一个心愿' : activeTab === 'share' ? '分享我有的资源' : '写下你的建议'}
-        </button>
-      )}
-
       {submitted && (
         <div className="bg-[var(--bg-card)] border border-green-200 rounded-xl p-4 mb-4 text-center">
           <div className="text-3xl mb-1">✓</div>
@@ -412,6 +426,13 @@ export default function RequestPage() {
             <p className="text-xs text-[var(--text-muted)] mt-1">今日还可提交 {dailyRemaining} 次</p>
           )}
         </div>
+      )}
+
+      {!showForm && (
+        <button onClick={handleOpenForm}
+          className="w-full py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:text-[var(--brand)] hover:border-[var(--brand)] transition-all mb-4">
+          + {activeTab === 'request' ? '许下一个心愿' : activeTab === 'share' ? '分享我有的资源' : '写下你的建议'}
+        </button>
       )}
 
       {renderForm()}

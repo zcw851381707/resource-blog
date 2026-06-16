@@ -67,6 +67,7 @@ function AllPageContent() {
     if (selectedTag === 'new' && !d.isNewlyAired) return false
     if (selectedTag === 'upcoming' && !d.isUpcoming) return false
     if (selectedTag === 'schedule' && !d.isOnSchedule) return false
+    if (selectedTag === 'completed' && !d.isCompleted) return false
     return true
   })
 
@@ -111,6 +112,7 @@ function AllPageContent() {
           {[
             { key: '', label: '全部' },
             { key: 'schedule', label: '追剧中' },
+            { key: 'completed', label: '已完结' },
             { key: 'new', label: '最新上线' },
             { key: 'upcoming', label: '即将上线' },
           ].map(t => (

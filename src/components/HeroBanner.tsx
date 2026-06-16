@@ -17,6 +17,10 @@ interface DramaInfo {
   isCompleted?: boolean
   isOnSchedule?: boolean
   isNewlyAired?: boolean
+  isUpcoming?: boolean
+  expectedDate?: Date | string | null
+  startDate?: Date | string | null
+  premiereEpisodes?: number | null
 }
 
 interface BannerData {
@@ -293,7 +297,13 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
     const solidBg = banner.image ? (solidColors[banner.id] || 'rgba(20,20,20,0.95)') : undefined
     const description = banner.description || drama?.description || null
     const title = banner.title || drama?.title || ''
-    const ep = drama ? (drama.manualEpisode ?? drama.currentEpisode) : null
+    // 未播出 → 不显示集数
+    const notAiredYet = drama?.isUpcoming || (drama?.startDate ? new Date(drama.startDate as string) > new Date() : false)
+    const rawEp = notAiredYet ? null : (drama ? (drama.manualEpisode ?? drama.currentEpisode) : null)
+    // 首播集数优先：如果设置了 premiereEpisodes 且大于当前记录，使用首播集数
+    const ep = !notAiredYet && drama?.premiereEpisodes && (!rawEp || drama.premiereEpisodes > (rawEp ?? 0))
+      ? drama.premiereEpisodes
+      : rawEp
 
     const airDayLabels = drama?.airDays
       ? drama.airDays.split(',').map(d => dayNames[parseInt(d.trim())]).join('、')
@@ -307,6 +317,10 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
     if (drama?.isCompleted) tagBadges.push('已完结')
     else if (drama?.isOnSchedule) tagBadges.push('追剧中')
     if (drama?.isNewlyAired) tagBadges.push('新播')
+    if (drama?.isUpcoming && drama.expectedDate) {
+      const ed = new Date(drama.expectedDate as string)
+      tagBadges.push(`${ed.getMonth() + 1}月${ed.getDate()}日上线`)
+    }
     if (drama?.tags) tagBadges.push(drama.tags)
 
     const { left: imgLeft, top: imgTop, zoom: imgZoom } = parseImagePosition(banner.imagePosition)
@@ -505,22 +519,25 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
                 tag === '已完结' ? 'bg-gray-500/80' :
                 tag === '追剧中' ? 'bg-blue-500/80' :
                 tag === '新播' ? 'bg-green-500/80' :
+                tag.includes('上线') ? 'bg-amber-500/80' :
                 'bg-white/20'
               }`}>{tag}</span>
             ))}
           </div>
         )}
 
-        {/* 集数信息 */}
-        {(ep || drama?.totalEpisodes) && (
+        {/* 集数信息（未播出不显示） */}
+        {!notAiredYet && (ep || drama?.totalEpisodes || drama?.premiereEpisodes) && (
           <p className="text-white/85 text-sm md:text-base mb-2">
             {drama?.isCompleted
               ? `已完结，共${drama.totalEpisodes}集`
-              : ep && drama?.totalEpisodes
-                ? `更新至第${ep}集 / 共${drama.totalEpisodes}集`
-                : ep
-                  ? `更新至第${ep}集`
-                  : `共${drama?.totalEpisodes}集`}
+              : drama?.premiereEpisodes && !ep
+                ? `首播${drama.premiereEpisodes}集 / 共${drama.totalEpisodes}集`
+                : ep && drama?.totalEpisodes
+                  ? `更新至第${ep}集 / 共${drama.totalEpisodes}集`
+                  : ep
+                    ? `更新至第${ep}集`
+                    : `共${drama?.totalEpisodes}集`}
           </p>
         )}
 
@@ -619,20 +636,23 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
                     tag === '已完结' ? 'bg-gray-500/80' :
                     tag === '追剧中' ? 'bg-blue-500/80' :
                     tag === '新播' ? 'bg-green-500/80' :
+                    tag.includes('上线') ? 'bg-amber-500/80' :
                     'bg-white/20'
                   }`}>{tag}</span>
                 ))}
               </div>
             )}
-            {(ep || drama?.totalEpisodes) && (
+            {!notAiredYet && (ep || drama?.totalEpisodes || drama?.premiereEpisodes) && (
               <p className="text-white/70 text-xs whitespace-nowrap">
                 {drama?.isCompleted
                   ? `已完结，共${drama.totalEpisodes}集`
-                  : ep && drama?.totalEpisodes
-                    ? `更新至第${ep}集 / 共${drama.totalEpisodes}集`
-                    : ep
-                      ? `更新至第${ep}集`
-                      : `共${drama?.totalEpisodes}集`}
+                  : drama?.premiereEpisodes && !ep
+                    ? `首播${drama.premiereEpisodes}集 / 共${drama.totalEpisodes}集`
+                    : ep && drama?.totalEpisodes
+                      ? `更新至第${ep}集 / 共${drama.totalEpisodes}集`
+                      : ep
+                        ? `更新至第${ep}集`
+                        : `共${drama?.totalEpisodes}集`}
               </p>
             )}
             {(airDayLabels || drama?.airTime) && (
@@ -771,21 +791,20 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
             ))}
           </div>
         )}
-      </div>
 
-      {/* 移动端圆点 — 容器外 */}
-      {banners.length > 1 && (
-        <div className="md:hidden flex justify-center gap-1.5 mt-2 pb-1">
+        {/* 移动端圆点 — 容器内 absolute，叠加在图片上 */}
+        {banners.length > 1 && (
+          <div className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 px-3 py-1.5 rounded-full bg-black/5 backdrop-blur-sm">
           {banners.map((_, i) => (
-            <button key={i} type="button" onClick={() => goTo(i)}
+            <button key={i} type="button" onClick={(e) => { e.stopPropagation(); goTo(i) }}
               className="relative rounded-full transition-all duration-300"
               style={{
                 width: i === current ? '1.25rem' : '0.5rem', height: '0.5rem',
-                backgroundColor: i === current ? 'var(--brand)' : 'var(--border)',
+                backgroundColor: i === current ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)',
               }}>
               {i === current && (!paused || isCurrentUnmuted) && (
                 <span className="absolute inset-0 rounded-full overflow-hidden">
-                  <span className="absolute inset-0 bg-white/30 rounded-full"
+                  <span className="absolute inset-0 bg-[var(--brand)] rounded-full"
                     style={isCurrentUnmuted
                       ? { width: `${videoProgress}%`, transition: 'width 0.25s linear' }
                       : { animation: `carouselCountdown ${currentInterval}ms linear infinite` }
@@ -796,6 +815,7 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
           ))}
         </div>
       )}
+      </div>
     </section>
   )
 }

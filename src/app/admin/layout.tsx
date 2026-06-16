@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -22,6 +22,9 @@ const navItems = [
   { href: '/admin/socials', label: '社交链接', icon: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
   )},
+  { href: '/admin/articles', label: '文章管理', icon: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+  )},
   { href: '/admin/announcements', label: '公告管理', icon: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
   )},
@@ -41,24 +44,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [checking, setChecking] = useState(true)
   const [collapsed, setCollapsed] = useState(false)
   const [showBackTop, setShowBackTop] = useState(false)
+  const [greeting, setGreeting] = useState('欢迎回来')
   const mainRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
 
-  // 回到顶部按钮：监听内容区滚动
-  const mainEl = mainRef.current
-  const handleScroll = useCallback(() => {
-    if (mainEl) {
-      setShowBackTop(mainEl.scrollTop > mainEl.clientHeight)
-    }
-  }, [mainEl])
+  useEffect(() => {
+    const h = new Date().getHours()
+    if (h >= 8 && h < 12) setGreeting('开工啦，又是美好的一天，今天也要活力满满哦 😀')
+    else if (h >= 12 && h < 22) setGreeting('💼 工作辛苦了，今天有没有好好吃饭呀')
+    else setGreeting('已经深夜喽，注意好好休息 🛏️💤，明天才有活力呀')
+  }, [])
 
+  // 滚动到页面下半部分时显示回到顶部按钮
   useEffect(() => {
     const el = mainRef.current
     if (!el) return
-    el.addEventListener('scroll', handleScroll, { passive: true })
-    return () => el.removeEventListener('scroll', handleScroll)
-  }, [handleScroll])
+    const onScroll = () => {
+      setShowBackTop(el.scrollTop > 10)
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [authed])
 
   useEffect(() => {
     fetch('/api/auth/check')
@@ -174,7 +181,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* 未登录时不需要顶栏，直接显示内容（登录页） */}
         {authed && (
           <header className="shrink-0 h-14 bg-[var(--bg)] border-b border-[var(--border)] flex items-center justify-end px-4 gap-2">
-            <span className="text-xs text-[var(--text-muted)] mr-auto">欢迎回来</span>
+            <span className="text-xs text-[var(--text-muted)] mr-auto">{greeting}</span>
           </header>
         )}
         <main ref={mainRef} className="flex-1 overflow-auto relative">

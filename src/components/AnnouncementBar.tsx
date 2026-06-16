@@ -17,9 +17,11 @@ export default function AnnouncementBar({ content }: { content: string }) {
     >
       <span className="text-amber-500 text-lg shrink-0">⚡</span>
       <div className="flex-1 overflow-hidden">
-        <p className="text-sm text-amber-800 whitespace-nowrap animate-marquee">
-          <span>{content}</span>
-          <span className="mx-8">{content}</span>
+        {/* 移动端：单条，自动换行；PC端：双条跑马灯 */}
+        <p className="text-sm text-amber-800 md:whitespace-nowrap animate-marquee">
+          <span className="md:hidden">{content}</span>
+          <span className="hidden md:inline">{content}</span>
+          <span className="mx-80 hidden md:inline">{content}</span>
         </p>
       </div>
       <button

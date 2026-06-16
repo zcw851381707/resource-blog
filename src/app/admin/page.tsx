@@ -94,7 +94,7 @@ export default function AdminPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-lg bg-[var(--brand)] text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="w-full py-2.5 rounded-lg bg-[var(--brand-pale)] text-[var(--brand)] font-medium hover:bg-[var(--brand)] hover:text-white transition-all disabled:opacity-50"
             >
               {loading ? '登录中...' : '登录'}
             </button>
@@ -121,7 +121,7 @@ export default function AdminPage() {
           <a
             key={item.href}
             href={item.href}
-            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-6 hover:shadow-md hover:border-[var(--brand)] transition-all"
+            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-6 hover:shadow-md hover:border-[var(--brand)] hover:-translate-y-0.5 transition-all"
           >
             <h3 className="text-lg font-semibold text-[var(--text-primary)]">{item.title}</h3>
             <p className="text-sm text-[var(--text-muted)] mt-1">{item.desc}</p>

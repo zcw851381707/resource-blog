@@ -176,7 +176,11 @@ export default function AdminBanners() {
     dragRef.current.dragging = false
     setDragging(false)
     // 保存拖拽后的位置 + 当前实际 zoom
-    setForm(prev => ({ ...prev, imagePosition: `${dragRef.current.curL}% ${dragRef.current.curT}% ${defaultPos.zoom}%` }))
+    // 限制范围，防止图片完全滑出视野
+    const zoom = defaultPos.zoom
+    const clampedL = Math.min(0, Math.max(30 - zoom, Math.round(dragRef.current.curL)))
+    const clampedT = Math.min(0, Math.max(30 - zoom, Math.round(dragRef.current.curT)))
+    setForm(prev => ({ ...prev, imagePosition: `${clampedL}% ${clampedT}% ${zoom}%` }))
   }
 
   const load = async () => {
@@ -457,7 +461,9 @@ export default function AdminBanners() {
     imgStyle.left = `${curLeft}%`
     imgStyle.top = `${curTop}%`
     imgStyle.width = `${curZoom}%`
-    imgStyle.height = 'auto'
+    // 保持宽高比不变形：用 natural ratio 算出显式高度，避免 auto + absolute 的浏览器歧义
+    imgStyle.height = imgNaturalRatio ? `${curZoom / imgNaturalRatio}%` : 'auto'
+    imgStyle.objectFit = 'contain'
   }
   imgStyle.maskImage = adminMask
   imgStyle.WebkitMaskImage = adminMask

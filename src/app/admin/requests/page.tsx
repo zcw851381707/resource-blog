@@ -15,6 +15,7 @@ interface ResourceRequest {
   likes: number
   reply?: string | null
   isProcessed: boolean
+  isPublic: boolean
   createdAt: string
 }
 
@@ -33,12 +34,21 @@ export default function AdminRequests() {
   const [editingReply, setEditingReply] = useState<Record<string, boolean>>({})
 
   const load = async () => {
-    const res = await fetch('/api/requests')
-    setRequests(await res.json())
+    try {
+      const res = await fetch('/api/requests?admin=1')
+      const data = await res.json()
+      if (Array.isArray(data)) {
+        setRequests(data)
+      } else {
+        setRequests([])
+      }
+    } catch {
+      setRequests([])
+    }
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [activeTab])
 
   const handleProcess = async (req: ResourceRequest) => {
     await fetch(`/api/requests/${req.id}`, {
@@ -52,6 +62,15 @@ export default function AdminRequests() {
   const handleDelete = async (id: string) => {
     if (!confirm('确定删除此记录吗？')) return
     await fetch(`/api/requests/${id}`, { method: 'DELETE' })
+    load()
+  }
+
+  const handleTogglePublic = async (req: ResourceRequest) => {
+    await fetch('/api/requests', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'togglePublic', id: req.id }),
+    })
     load()
   }
 
@@ -143,6 +162,12 @@ export default function AdminRequests() {
                 isDone ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
               }`}>
               {isDone ? '已处理' : '待处理'}
+            </button>
+            <button onClick={() => handleTogglePublic(req)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                req.isPublic ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+              }`}>
+              {req.isPublic ? '公开' : '隐藏'}
             </button>
             <button onClick={() => handleDelete(req.id)} className="text-sm text-red-500 hover:underline">删除</button>
           </div>

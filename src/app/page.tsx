@@ -4,12 +4,13 @@ import AnnouncementBar from '@/components/AnnouncementBar'
 import WeeklyCalendar from '@/components/WeeklyCalendar'
 import DramaCard from '@/components/DramaCard'
 import RegionSection from '@/components/RegionSection'
+import ArticleSection from '@/components/ArticleSection'
 import SocialSection from '@/components/SocialSection'
 import ScrollReveal from '@/components/ScrollReveal'
 import FullRowGrid from '@/components/FullRowGrid'
 import HorizontalSlider from '@/components/HorizontalSlider'
 import Link from 'next/link'
-import { buildWeeklySchedule, hydrateDramaDisplayFields } from '@/lib/drama-schedule'
+import { buildWeeklySchedule, hydrateDramaDisplayFields, isNewlyAiredActive } from '@/lib/drama-schedule'
 
 const regions = [
   { key: '中国', label: '中国', includes: ['中国', '中国台湾', '中国香港', '中国澳门'] },
@@ -42,7 +43,7 @@ export default async function Home() {
         ],
       },
       orderBy: { createdAt: 'desc' },
-      take: 10,
+      take: 30, // 取多一些，后面按 45 天规则过滤
     }),
     prisma.drama.findMany({
       where: { isUpcoming: true },
@@ -68,21 +69,68 @@ export default async function Home() {
   await hydrateDramaDisplayFields(latestDramas)
   await hydrateDramaDisplayFields(upcomingDramas)
 
+  // 新播标签 45 天自动过期
+  const activeLatestDramas = latestDramas.filter(d => isNewlyAiredActive(d)).slice(0, 10)
+
   const schedule = buildWeeklySchedule(allDramas)
+
 
   // 地区分组
   const regionData: Record<string, typeof allDramas> = {}
   for (const r of regions) {
+    const now = new Date()
+    const todayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+
     regionData[r.key] = allDramas
       .filter(d => {
         const dramaRegions = (d.region || '').split(',').filter(Boolean)
         return dramaRegions.some(rr => r.includes.includes(rr))
       })
+      .sort((a, b) => {
+        const aHasSchedule = a.isOnSchedule && a.airDays && a.airTime &&
+          a.airDays.split(',').map(x => x.trim()).includes(String(todayIdx))
+        const bHasSchedule = b.isOnSchedule && b.airDays && b.airTime &&
+          b.airDays.split(',').map(x => x.trim()).includes(String(todayIdx))
+
+        // 两部今天都不播 → sortOrder（小在前）→ 热度
+        if (!aHasSchedule && !bHasSchedule) {
+          return (a.sortOrder || 0) - (b.sortOrder || 0) || (b.clickCount || 0) - (a.clickCount || 0)
+        }
+        // 一部今天播 → 排前面
+        if (aHasSchedule && !bHasSchedule) return -1
+        if (!aHasSchedule && bHasSchedule) return 1
+
+        // 两部今天都播 → 按播出时间排序
+        const [ah, am] = a.airTime!.split(':').map(Number)
+        const [bh, bm] = b.airTime!.split(':').map(Number)
+        const aMins = ah * 60 + am
+        const bMins = bh * 60 + bm
+        const aDiff = aMins - currentMinutes
+        const bDiff = bMins - currentMinutes
+
+        const aInWindow = aDiff >= 0 && aDiff <= 10   // 播出前 10 分钟内
+        const bInWindow = bDiff >= 0 && bDiff <= 10
+
+        if (aInWindow && bInWindow) return aDiff - bDiff     // 都进入窗口：谁先播谁排前
+        if (aInWindow) return -1                              // a 进入窗口
+        if (bInWindow) return 1                               // b 进入窗口
+
+        // 都还没到窗口：未播的排在已播的前面
+        if (aDiff >= 0 && bDiff >= 0) return aDiff - bDiff    // 都未播：先播的排前
+        if (aDiff >= 0) return -1                             // a 未播 b 已播
+        if (bDiff >= 0) return 1                              // b 未播 a 已播
+
+        // 都已经播过 → sortOrder（小在前）→ 热度
+        return (a.sortOrder || 0) - (b.sortOrder || 0) || (b.clickCount || 0) - (a.clickCount || 0)
+      })
       .slice(0, 10)
   }
 
+
   return (
     <div className="max-w-[1200px] mx-auto px-4 py-6 space-y-8">
+      <h1 className="sr-only">晨光曦·分享站 — 追剧日历、资源分享</h1>
       {/* Hero Banner */}
       <HeroBanner banners={banners} dramas={allDramas.map(d => ({
         id: d.id, title: d.title, slug: d.slug,
@@ -90,6 +138,7 @@ export default async function Home() {
         manualEpisode: d.manualEpisode, airDays: d.airDays, airTime: d.airTime,
         description: d.description, region: d.region, tags: d.tags,
         isCompleted: d.isCompleted, isOnSchedule: d.isOnSchedule, isNewlyAired: d.isNewlyAired,
+        isUpcoming: d.isUpcoming, expectedDate: d.expectedDate, startDate: d.startDate, premiereEpisodes: d.premiereEpisodes,
       }))} />
 
       {/* 公告栏 */}
@@ -101,12 +150,12 @@ export default async function Home() {
       <WeeklyCalendar schedule={schedule} />
 
       {/* 最新上线 */}
-      {latestDramas.length > 0 && (
+      {activeLatestDramas.length > 0 && (
         <ScrollReveal delay={0}>
           <section>
             <h2 className="text-xl font-extrabold text-[var(--text-primary)] mb-3 text-center">最新上线</h2>
             <FullRowGrid className="drama-grid">
-              {latestDramas.map(d => (
+              {activeLatestDramas.map(d => (
                 <DramaCard key={d.id} drama={d} />
               ))}
             </FullRowGrid>
@@ -144,6 +193,9 @@ export default async function Home() {
           </section>
         </ScrollReveal>
       )}
+
+      {/* 追剧笔记 */}
+      <ArticleSection />
 
       {/* 地区分组 */}
       {regions.map((r, i) => (

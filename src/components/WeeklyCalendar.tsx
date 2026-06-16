@@ -20,7 +20,10 @@ interface DramaData {
   manualEpisode?: number | null
   totalEpisodes?: number | null
   episodesPerDay?: number | null
+  premiereEpisodes?: number | null
   isNewlyAired?: boolean
+  isCompleted?: boolean
+  completedAt?: Date | string | null
   imagePosition?: string | null
   seriesOrder?: number | null
   startDate?: Date | string | null
@@ -94,41 +97,93 @@ function DramaItem({ drama, dayIndex, weekDates }: { drama: DramaData; dayIndex:
     return now >= monday && now <= sunday
   })()
 
-  // 从 startDate 起正向计算：到指定日期为止一共播出了多少集
+  // 判断该日是否为首播日（日期比对，不依赖 currentEpisode）
+  const thisDayDate = weekDates[dayIndex]
+  const isPremiereDay2 = !!(drama.startDate && drama.premiereEpisodes &&
+    new Date(drama.startDate).toDateString() === thisDayDate.toDateString())
+
+  // 集数计算：每周一 0:00 快照，本周内不变
+  // 每个播出日的集数 = baseEp + 本周一到该日累计播出次数 × episodesPerDay
   const isPausedDay = !!(drama.pausedDays && drama.pausedDays.split(',').map((s: string) => s.trim()).includes(String(dayIndex)))
   const isPremiere = !ep && (isPremiered || isInPremiereWeek)
   let displayEp: number | null | undefined = ep
 
-  if (drama.airDays && drama.startDate) {
+  if (drama.airDays) {
     const airDayIndices = drama.airDays.split(',').map(d => parseInt(d.trim()))
     if (airDayIndices.includes(dayIndex)) {
       const pausedIndices = (drama.pausedDays || '').split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
-      const targetDate = weekDates[dayIndex]
-      const startDate = new Date(drama.startDate)
-      startDate.setHours(0, 0, 0, 0) // 归零到本地时间，避免 UTC 时区偏移
 
-      // 正向数：从开播日到目标日，一共多少个播出日
-      let totalAirings = 0
-      const cursor = new Date(startDate)
-      const endDate = new Date(targetDate)
-      endDate.setHours(23, 59, 59, 999)
+      // 已完结：从 totalEpisodes 倒推（因为 currentEpisode 已被更新为最终值）
+      if (drama.isCompleted && drama.totalEpisodes && drama.completedAt) {
+        const completedDate = new Date(drama.completedAt)
+        const completedDayOfWeek = completedDate.getDay() === 0 ? 6 : completedDate.getDay() - 1
+        const epd = drama.episodesPerDay || 1
+        const remainingAirDays = airDayIndices.filter(d => d > dayIndex && d <= completedDayOfWeek && !pausedIndices.includes(d)).length
+        displayEp = drama.totalEpisodes - remainingAirDays * epd
+      } else if (isPremiereDay2) {
+        // 首播日：直接显示 premiereEpisodes（连更集数）
+        displayEp = drama.premiereEpisodes!
+      } else if (ep || drama.premiereEpisodes) {
+        const epNum = ep || 0
+        const epd = drama.episodesPerDay || 1
 
-      while (cursor <= endDate) {
-        const cursorIdx = cursor.getDay() === 0 ? 6 : cursor.getDay() - 1
-        if (airDayIndices.includes(cursorIdx)) {
-          if (!pausedIndices.includes(cursorIdx)) {
-            totalAirings++
+        if (!ep && drama.premiereEpisodes) {
+          // 首播周后续播出日：首播日已过，后续累加 epd
+          const activeAirDays = airDayIndices.filter(d => !pausedIndices.includes(d)).sort((a, b) => a - b)
+          const firstAirDay = activeAirDays[0]
+          if (dayIndex === firstAirDay) {
+            displayEp = drama.premiereEpisodes
+          } else {
+            const daysAfter = activeAirDays.filter(d => d > firstAirDay && d <= dayIndex).length
+            displayEp = (drama.premiereEpisodes || 0) + daysAfter * epd
           }
+        } else {
+          // 正常播出：以当前真实集数 epNum 为基准，加上未来从最后一次播出后到目标日之间的播出次数 × epd
+          const now = new Date()
+          const nowMins = now.getHours() * 60 + now.getMinutes()
+          const isAiredToday = !!(drama.airTime && (() => {
+            const [h, m] = drama.airTime.split(':').map(Number)
+            return !isNaN(h) && !isNaN(m) && nowMins >= h * 60 + m
+          })())
+          // 最后已播出的日索引（本周内找不到时 lastAired = -1，本周所有播出日都算未来）
+          let lastAired = -1
+          for (const ad of [...airDayIndices].sort((a, b) => a - b)) {
+            if (pausedIndices.includes(ad)) continue
+            if (ad < todayIdx || (ad === todayIdx && isAiredToday)) lastAired = ad
+            else break
+          }
+          const futureCount = airDayIndices.filter(d => d > lastAired && d <= dayIndex && !pausedIndices.includes(d)).length
+          displayEp = epNum + futureCount * epd
         }
-        cursor.setDate(cursor.getDate() + 1)
-      }
+      } else if (drama.startDate) {
+        // 无集数数据：从 startDate 正向计数
+        const targetDate = weekDates[dayIndex]
+        const startDate = new Date(drama.startDate)
+        startDate.setHours(0, 0, 0, 0)
 
-      if (isPremiere) {
-        displayEp = totalAirings * (drama.episodesPerDay || 1)
-      } else {
+        let totalAirings = 0
+        const cursor = new Date(startDate)
+        const endDate = new Date(targetDate)
+        endDate.setHours(23, 59, 59, 999)
+
+        while (cursor <= endDate) {
+          const cursorIdx = cursor.getDay() === 0 ? 6 : cursor.getDay() - 1
+          if (airDayIndices.includes(cursorIdx)) {
+            if (!pausedIndices.includes(cursorIdx)) {
+              totalAirings++
+            }
+          }
+          cursor.setDate(cursor.getDate() + 1)
+        }
+
         displayEp = totalAirings * (drama.episodesPerDay || 1)
       }
     }
+  }
+
+  // 无 airDays 但在首播周：至少显示首播集数（如 Stand By Me / Lost to Light）
+  if (!displayEp && isPremiere && !isPremiered) {
+    displayEp = drama.premiereEpisodes || drama.episodesPerDay || 1
   }
 
   // 已完结剧集的展示集数不超总集数
@@ -168,14 +223,18 @@ function DramaItem({ drama, dayIndex, weekDates }: { drama: DramaData; dayIndex:
           })()} 上线</p>
         ) : (() => {
           const total = drama.totalEpisodes || 0
-          const premiereBadge = isPremiereDay || (!ep && drama.expectedDate && !isPremiered)
+          const premiereBadge = isPremiereDay2 || isPremiereDay || (!ep && drama.expectedDate && !isPremiered)
           const finishedBadge = total > 0 && displayEp && displayEp >= total && !isPausedDay
           const hasBadge = premiereBadge || finishedBadge || isPausedDay || drama.isSuspended
 
           const epText = (() => {
             if (drama.isSuspended) return null
             if (!displayEp) return null
-            if (isPremiere && !isPremiered) return '首播'
+            // 首播：显示"首播X集"，X = 首播集数 或 每日更新集数
+            if (isPremiereDay2 || (isPremiere && !isPremiered)) {
+              const count = drama.premiereEpisodes || drama.episodesPerDay || 1
+              return `首播${count}集`
+            }
             if (drama.totalEpisodes) return `第${displayEp}集/共${drama.totalEpisodes}集`
             return `第${displayEp}集`
           })()
@@ -594,21 +653,32 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
       {/* 海报弹窗 */}
       {shareState !== 'idle' && (
         <>
+        {/* 固定关闭按钮：对齐海报内容宽度，始终可见 */}
+        <div className="fixed z-[210] flex justify-end"
+          style={{
+            top: 'max(12px, env(safe-area-inset-top))',
+            left: '50%', transform: 'translateX(-50%)',
+            width: 'calc(100vw - 32px)', maxWidth: '390px',
+          }}>
+          <button
+            onClick={handleClose}
+            className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform shadow-lg border border-white/20"
+            aria-label="关闭"
+          >
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        {/* 滚动内容区 */}
         <div
-          className="fixed inset-0 z-[200] bg-black/60 overflow-y-auto overscroll-contain"
+          className="fixed inset-0 z-[200] bg-black/60 overflow-y-auto"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          <div className="min-h-full flex flex-col items-center px-4 pb-4 gap-4" style={{ paddingTop: 'max(3.5rem, env(safe-area-inset-top))' }}>
-            {/* 关闭按钮 — 纯色背景，高对比度 */}
-            <div className="w-[calc(100vw-32px)] max-w-[390px] flex justify-end shrink-0">
-              <button
-                onClick={handleClose}
-                className="w-10 h-10 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform shadow-lg border border-white/20"
-                aria-label="关闭"
-              >
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
+          <div
+            className="min-h-full flex flex-col items-center px-4 pb-4 gap-4"
+            style={{ paddingTop: 'max(3.5rem, env(safe-area-inset-top))' }}
+            onClick={(e) => { if (e.target === e.currentTarget) handleClose() }}
+          >
 
             {/* 生成的图片 */}
             {shareState === 'done' && posterImageUrl && (
@@ -681,28 +751,75 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                                   return n >= monday && n <= sunday 
                                 })()
                                 const posterIsPremiere = !ep && (isPremiered || isInPremiereWeek)
+                                const posterIsPremiereDay2 = !!(d.startDate && d.premiereEpisodes &&
+                                  new Date(d.startDate).toDateString() === weekDates[idx].toDateString())
                                 let displayEp: number | null | undefined = ep
                                 const isPausedDay = !!(d.pausedDays && d.pausedDays.split(',').map((s: string) => s.trim()).includes(String(idx)))
-                                if (d.airDays && d.startDate) {
+                                if (d.airDays) {
                                   const airDayIndices = d.airDays.split(',').map((s: string) => parseInt(s.trim()))
                                   if (airDayIndices.includes(idx)) {
                                     const pausedIndices2 = (d.pausedDays || '').split(',').map((s: string) => parseInt(s.trim())).filter((n: number) => !isNaN(n))
-                                    const targetDate = weekDates[idx]
-                                    const start = new Date(d.startDate)
-                                    start.setHours(0, 0, 0, 0)
-                                    let count = 0
-                                    const cursor = new Date(start)
-                                    const end = new Date(targetDate)
-                                    end.setHours(23, 59, 59, 999)
-                                    while (cursor <= end) {
-                                      const ci = cursor.getDay() === 0 ? 6 : cursor.getDay() - 1
-                                      if (airDayIndices.includes(ci) && !pausedIndices2.includes(ci)) {
-                                        count++
+                                    // 已完结：从 totalEpisodes 倒推
+                                    if (d.isCompleted && d.totalEpisodes && d.completedAt) {
+                                      const completedDate = new Date(d.completedAt)
+                                      const completedDayOfWeek = completedDate.getDay() === 0 ? 6 : completedDate.getDay() - 1
+                                      const epd = d.episodesPerDay || 1
+                                      const remainingAirDays = airDayIndices.filter((dd: number) => dd > idx && dd <= completedDayOfWeek && !pausedIndices2.includes(dd)).length
+                                      displayEp = d.totalEpisodes - remainingAirDays * epd
+                                    } else if (posterIsPremiereDay2) {
+                                      displayEp = d.premiereEpisodes!
+                                    } else if (ep || d.premiereEpisodes) {
+                                      const epNum = ep || 0
+                                      const epd = d.episodesPerDay || 1
+                                      if (!ep && d.premiereEpisodes) {
+                                        const activeAirDays = airDayIndices.filter((dd: number) => !pausedIndices2.includes(dd)).sort((a, b) => a - b)
+                                        const firstAirDay = activeAirDays[0]
+                                        if (idx === firstAirDay) {
+                                          displayEp = d.premiereEpisodes
+                                        } else {
+                                          const daysAfter = activeAirDays.filter((dd: number) => dd > firstAirDay && dd <= idx).length
+                                          displayEp = (d.premiereEpisodes || 0) + daysAfter * epd
+                                        }
+                                      } else {
+                                        // 正常播出：以当前真实集数 epNum 为基准，加上未来播出次数 × epd
+                                        const now2 = new Date()
+                                        const nowMins2 = now2.getHours() * 60 + now2.getMinutes()
+                                        const todayIdx2 = now2.getDay() === 0 ? 6 : now2.getDay() - 1
+                                        const isAiredToday2 = !!(d.airTime && (() => {
+                                          const [h2, m2] = d.airTime.split(':').map(Number)
+                                          return !isNaN(h2) && !isNaN(m2) && nowMins2 >= h2 * 60 + m2
+                                        })())
+                                        let lastAired2 = -1
+                                        for (const ad2 of [...airDayIndices].sort((a: number, b: number) => a - b)) {
+                                          if (pausedIndices2.includes(ad2)) continue
+                                          if (ad2 < todayIdx2 || (ad2 === todayIdx2 && isAiredToday2)) lastAired2 = ad2
+                                          else break
+                                        }
+                                        const futureCount2 = airDayIndices.filter((dd: number) => dd > lastAired2 && dd <= idx && !pausedIndices2.includes(dd)).length
+                                        displayEp = epNum + futureCount2 * epd
                                       }
-                                      cursor.setDate(cursor.getDate() + 1)
+                                    } else if (d.startDate) {
+                                      const targetDate = weekDates[idx]
+                                      const start = new Date(d.startDate)
+                                      start.setHours(0, 0, 0, 0)
+                                      let count = 0
+                                      const cursor = new Date(start)
+                                      const end = new Date(targetDate)
+                                      end.setHours(23, 59, 59, 999)
+                                      while (cursor <= end) {
+                                        const ci = cursor.getDay() === 0 ? 6 : cursor.getDay() - 1
+                                        if (airDayIndices.includes(ci) && !pausedIndices2.includes(ci)) {
+                                          count++
+                                        }
+                                        cursor.setDate(cursor.getDate() + 1)
+                                      }
+                                      displayEp = count * (d.episodesPerDay || 1)
                                     }
-                                    displayEp = count * (d.episodesPerDay || 1)
                                   }
+                                }
+                                // 无 airDays 但在首播周：至少显示首播集数
+                                if (!displayEp && posterIsPremiere && !isPremiered) {
+                                  displayEp = d.premiereEpisodes || d.episodesPerDay || 1
                                 }
                                 // 已完结剧集展示集数不超总集数
                                 if (displayEp && d.totalEpisodes && d.totalEpisodes > 0 && displayEp > d.totalEpisodes) {
@@ -710,8 +827,8 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                                 }
                                 const total = d.totalEpisodes || 0
                                 const posterPaused = isPausedDay
-                                const epLabel = d.isSuspended ? '' : (total > 0 && displayEp ? `第${displayEp}集/共${total}集` : displayEp ? `第${displayEp}集` : isPremiered ? '第1集' : '')
-                                const showPremiere = isPremiereDay || (!ep && !d.isUpcoming)
+                                const epLabel = d.isSuspended ? '' : (posterIsPremiereDay2 || (!ep && isPremiered) ? `首播${d.premiereEpisodes || d.episodesPerDay || 1}集` : total > 0 && displayEp ? `第${displayEp}集/共${total}集` : displayEp ? `第${displayEp}集` : isPremiered ? '第1集' : '')
+                                const showPremiere = posterIsPremiereDay2 || isPremiereDay || (!ep && !d.isUpcoming)
                                 const showFinished = total > 0 && displayEp && displayEp >= total && !posterPaused
                                 const hasTag = showPremiere || showFinished || posterPaused || d.isSuspended
                                 const line2: string[] = []
@@ -783,6 +900,7 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
             <div className="h-16 shrink-0 md:h-4"></div>
           </div>
         </div>
+
         </>
       )}
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">

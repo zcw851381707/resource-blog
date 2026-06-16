@@ -97,6 +97,13 @@ body {
   font-family: "PingFang SC", "苹方", -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
 }
 
+/* 移动端输入框防止 iOS 自动放大 */
+@media (max-width: 767px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
 /* iPhone 挖孔屏安全区 */
 @supports (padding-top: env(safe-area-inset-top)) {
   html {
@@ -214,25 +221,25 @@ body {
 
 /* Banner 左右滑动切换 */
 @keyframes slideInFromRight {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(0); }
+  0% { transform: translateX(100%); opacity: 0.7; }
+  100% { transform: translateX(0); opacity: 1; }
 }
 @keyframes slideOutToLeft {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-100%); }
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-100%); opacity: 0; }
 }
 @keyframes slideInFromLeft {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(0); }
+  0% { transform: translateX(-100%); opacity: 0.7; }
+  100% { transform: translateX(0); opacity: 1; }
 }
 @keyframes slideOutToRight {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(100%); }
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
 }
-.animate-slideNextIn { animation: slideInFromRight 0.5s ease-out forwards; }
-.animate-slideNextOut { animation: slideOutToLeft 0.5s ease-out forwards; }
-.animate-slidePrevIn { animation: slideInFromLeft 0.5s ease-out forwards; }
-.animate-slidePrevOut { animation: slideOutToRight 0.5s ease-out forwards; }
+.animate-slideNextIn { animation: slideInFromRight 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; will-change: transform, opacity; }
+.animate-slideNextOut { animation: slideOutToLeft 0.25s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards; will-change: transform, opacity; }
+.animate-slidePrevIn { animation: slideInFromLeft 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; will-change: transform, opacity; }
+.animate-slidePrevOut { animation: slideOutToRight 0.25s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards; will-change: transform, opacity; }
 
 /* 公告关闭 */
 @keyframes collapseOut {
@@ -298,3 +305,9 @@ body {
 .card-reveal:nth-child(10) { animation-delay: 0.45s; }
 .card-reveal:nth-child(11) { animation-delay: 0.5s; }
 .card-reveal:nth-child(12) { animation-delay: 0.55s; }
+
+/* 笔记轮播卡片入场 */
+@keyframes carouselCardIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
