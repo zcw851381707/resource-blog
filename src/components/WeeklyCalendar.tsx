@@ -108,8 +108,16 @@ function DramaItem({ drama, dayIndex, weekDates }: { drama: DramaData; dayIndex:
   const isPremiere = !ep && (isPremiered || isInPremiereWeek)
   let displayEp: number | null | undefined = ep
 
-  if (drama.airDays) {
-    const airDayIndices = drama.airDays.split(',').map(d => parseInt(d.trim()))
+  // airDays 为空时从 startDate 推导播出日（如死神遇到爱、Checkmate）
+  const effectiveAirDays = drama.airDays || (drama.startDate ? String((() => {
+    const d = new Date(drama.startDate)
+    return d.getDay() === 0 ? 6 : d.getDay() - 1
+  })()) : (drama.expectedDate ? String((() => {
+    const d = new Date(drama.expectedDate)
+    return d.getDay() === 0 ? 6 : d.getDay() - 1
+  })()) : ''))
+  if (effectiveAirDays) {
+    const airDayIndices = effectiveAirDays.split(',').map(d => parseInt(d.trim()))
     if (airDayIndices.includes(dayIndex)) {
       const pausedIndices = (drama.pausedDays || '').split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
 
@@ -755,8 +763,12 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                                   new Date(d.startDate).toDateString() === weekDates[idx].toDateString())
                                 let displayEp: number | null | undefined = ep
                                 const isPausedDay = !!(d.pausedDays && d.pausedDays.split(',').map((s: string) => s.trim()).includes(String(idx)))
-                                if (d.airDays) {
-                                  const airDayIndices = d.airDays.split(',').map((s: string) => parseInt(s.trim()))
+                                const effectiveAirDays2 = d.airDays || (d.startDate ? String((() => {
+                                  const sd = new Date(d.startDate)
+                                  return sd.getDay() === 0 ? 6 : sd.getDay() - 1
+                                })()) : '')
+                                if (effectiveAirDays2) {
+                                  const airDayIndices = effectiveAirDays2.split(',').map((s: string) => parseInt(s.trim()))
                                   if (airDayIndices.includes(idx)) {
                                     const pausedIndices2 = (d.pausedDays || '').split(',').map((s: string) => parseInt(s.trim())).filter((n: number) => !isNaN(n))
                                     // 已完结：从 totalEpisodes 倒推

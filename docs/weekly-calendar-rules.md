@@ -75,10 +75,20 @@ displayEp = currentEpisode + (lastAired 之后到目标日之间的有效播出�
 - 今天不是播出日 → lastAired = 之前最近的播出日
 - 本周内还没播过（lastAired = -1）→ 全部未来都累加
 
-**示例**（今天是周一，已播到第 2 集，epd=1，播出日周五）：
+**首播集数的生命周期**：
+- 首播日当天用 `premiereEpisodes` 显示（"首播X集"）
+- 首播日**过了一周后**，`currentEpisode` 应等于 `premiereEpisodes`，日历切换到"当前集数 + 每日更新集数"模式
+- 每周一凌晨 0:00:00 是新一周起点，之前累计的集数 = currentEpisode
+
+**示例 1**（今天是周一，已播到第 2 集，epd=1，播出日周五）：
 - 周一/二/三/四：第 2 集
 - 周五：2 + 1 = 第 3 集
 - 周日（也是播出日）：2 + 2 = 第 4 集
+
+**示例 2**（《春山境》：上周五首播 4 集，今天 6/16 周二，airDays=周五，epd=1，currentEpisode=4）：
+- 当前 lastAired = 上周五（6/12），已过
+- 本周五（6/19）：4 + 1 = **第 5 集**
+- ⚠️ 如果 currentEpisode 还停在首播前的 1（未更新），会算出错误集数。首播完一周后必须更新 currentEpisode = premiereEpisodes
 
 **调整示例**（今天是周三，epd=1，播出日周五）：
 
