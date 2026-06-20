@@ -8,11 +8,46 @@ datasource db {
 }
 
 model User {
+  id               String    @id @default(uuid())
+  username         String    @unique
+  email            String?   @unique
+  avatar           String?
+  password         String
+  role             String    @default("user")   // user | admin
+  status           String    @default("active") // active | banned
+  mutedUntil       DateTime?
+  mutedReason      String?    // 禁言原因/通知文案
+  lastLoginAt      DateTime?
+  profileChangedAt DateTime?  // 用户名/头像上次修改时间；注册 30 天内可改一次，之后每 180 天一次
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model BannedWord {
   id        String   @id @default(uuid())
-  username  String   @unique
-  password  String
+  word      String   @unique
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+}
+
+model InviteCode {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  createdBy String
+  maxUses   Int       @default(1)
+  usedCount Int       @default(0)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model EmailCode {
+  id        String    @id @default(uuid())
+  email     String
+  code      String
+  purpose   String    // register | reset
+  used      Boolean   @default(false)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  ip        String?
 }
 
 model DownloadLink {
@@ -187,3 +222,88 @@ model LinkReport {
   createdAt    DateTime @default(now())
   drama        Drama    @relation(fields: [dramaId], references: [id], onDelete: Cascade)
 }
+
+model UserFavorite {
+  id        String   @id @default(uuid())
+  userId    String
+  dramaId   String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, dramaId])
+  @@index([userId])
+  @@index([dramaId])
+}
+
+model UserFollowing {
+  id        String   @id @default(uuid())
+  userId    String
+  dramaId   String
+  // watching = 追剧中, planned = 想看, completed = 已看完, dropped = 弃剧
+  status    String   @default("watching")
+  progress  Int      @default(0) // 用户标记的看到第几集
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, dramaId])
+  @@index([userId])
+  @@index([dramaId])
+  @@index([userId, status])
+}
+
+model Rating {
+  id        String   @id @default(uuid())
+  userId    String
+  dramaId   String
+  // 1-5 星
+  score     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, dramaId])
+  @@index([dramaId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  userId    String
+  dramaId   String
+  content   String
+  flag      String   @default("clean") // clean=正常  suspicious=可疑  toxic=已清除
+  // 软删除
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dramaId, createdAt])
+  @@index([userId])
+  @@index([flag, createdAt])
+}
+
+model DramaSubscription {
+  id        String    @id @default(uuid())
+  userId    String
+  dramaId   String
+  notified  Boolean   @default(false)
+  notifiedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, dramaId])
+  @@index([userId])
+  @@index([dramaId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   // 接收者
+  type      String   // ANNOUNCEMENT | MUTE
+  title     String   // 通知标题
+  content   String   // 通知内容
+  // 关联来源（公告 id / 禁言记录）
+  refId     String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+}
+

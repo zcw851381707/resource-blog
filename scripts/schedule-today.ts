@@ -137,7 +137,7 @@ async function sendMode() {
   const candidates = await prisma.drama.findMany({
     where: {
       OR: [
-        { isOnSchedule: true, airDays: { not: null } },
+        { isOnSchedule: true, isCompleted: false, airDays: { not: null } },
         { isUpcoming: true, expectedDate: { not: null }, expectedPrecision: 'day' },
       ],
     },
@@ -192,7 +192,7 @@ async function sendMode() {
       }
     } else {
       affected = await prisma.$executeRawUnsafe(
-        `UPDATE Drama SET notifiedAt = ?, currentEpisode = COALESCE(currentEpisode, 0) + 1 WHERE id = ? AND (notifiedAt IS NULL OR notifiedAt < ?)`,
+        `UPDATE Drama SET notifiedAt = ?, currentEpisode = COALESCE(currentEpisode, 0) + 1, manualEpisode = NULL WHERE id = ? AND (notifiedAt IS NULL OR notifiedAt < ?)`,
         now.toISOString(), d.id, todayStart
       )
       if (affected > 0) {
@@ -238,7 +238,7 @@ async function summaryMode() {
   const candidates = await prisma.drama.findMany({
     where: {
       OR: [
-        { isOnSchedule: true, airDays: { not: null } },
+        { isOnSchedule: true, isCompleted: false, airDays: { not: null } },
         { isUpcoming: true, expectedDate: { not: null } },
       ],
     },
@@ -372,7 +372,7 @@ async function scheduleForDay(dayIdx: number, dateStr: string, dateObj: Date, la
   const candidates = await prisma.drama.findMany({
     where: {
       OR: [
-        { isOnSchedule: true, airDays: { not: null } },
+        { isOnSchedule: true, isCompleted: false, airDays: { not: null } },
         { isUpcoming: true, expectedDate: { not: null } },
       ],
     },
@@ -465,6 +465,10 @@ async function main() {
     await summaryMode()
   } else if (process.argv.includes('--schedule')) {
     await scheduleMode()
+  } else if (process.argv.includes('--update')) {
+    // 批量更新集数：每小时跑一次，兜底 sendMode 漏掉的情况
+    const { updateEpisodesBatch } = await import('./update-episodes')
+    await updateEpisodesBatch()
   } else {
     await sendMode()
   }

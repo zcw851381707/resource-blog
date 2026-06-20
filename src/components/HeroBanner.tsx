@@ -721,8 +721,11 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
 
   const curBanner = banners[current]
   const curDrama = curBanner?.dramaId ? dramas.find(d => d.id === curBanner.dramaId) : null
-  // 点击跳转优先级：bannerLink > buttonLink > 关联剧集页
-  const bannerHref = curBanner?.bannerLink || curBanner?.buttonLink || (curDrama ? `/drama/${curDrama.slug}` : null)
+  // 跳转优先级：关联剧集 > 自定义链接（bannerLink / buttonLink）
+  // 关联了 dramaId 的 Banner 强制跳详情页；只有没关联剧集时才用 bannerLink / buttonLink
+  const bannerHref = curDrama
+    ? `/drama/${curDrama.slug}`
+    : (curBanner?.bannerLink || curBanner?.buttonLink || null)
 
   const handleBannerClick = () => {
     if (!bannerHref) return

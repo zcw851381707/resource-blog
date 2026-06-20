@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import VisitTracker from "@/components/VisitTracker";
-import PullToRefresh from "@/components/PullToRefresh";
-import { SiteHeader, SiteFooter, SiteMobileNav } from "@/components/SiteChrome";
+import ClientShell from "@/components/ClientShell";
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -86,13 +84,7 @@ export default function RootLayout({
             }),
           }}
         />
-        <VisitTracker />
-        <SiteHeader />
-        <main className="flex-1 pb-2 md:pb-0">
-          <PullToRefresh>{children}</PullToRefresh>
-        </main>
-        <SiteMobileNav />
-        <SiteFooter />
+        <ClientShell>{children}</ClientShell>
       </body>
     </html>
   );

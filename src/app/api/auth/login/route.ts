@@ -5,7 +5,6 @@ import { createToken } from '@/lib/auth'
 import { checkRateLimit, recordFailedAttempt, clearAttempts } from '@/lib/rate-limit'
 
 function getClientIP(request: NextRequest): string {
-  // 优先取反向代理/CDN 传过来的真实 IP
   const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) return forwarded.split(',')[0].trim()
   const realIP = request.headers.get('x-real-ip')
@@ -16,7 +15,6 @@ function getClientIP(request: NextRequest): string {
 export async function POST(request: NextRequest) {
   const ip = getClientIP(request)
 
-  // 频率限制检查
   const limit = checkRateLimit(ip)
   if (!limit.allowed) {
     return NextResponse.json(
@@ -26,20 +24,32 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { username, password } = body
+  const { email, username, password } = body
 
-  if (!username || !password) {
-    return NextResponse.json({ error: '请输入用户名和密码' }, { status: 400 })
+  if (!password) {
+    return NextResponse.json({ error: '请输入密码' }, { status: 400 })
   }
 
-  const user = await prisma.user.findUnique({ where: { username } })
+  let user = null
+  if (email) {
+    user = await prisma.user.findUnique({ where: { email } })
+  } else if (username) {
+    user = await prisma.user.findUnique({ where: { username } })
+  } else {
+    return NextResponse.json({ error: '请输入邮箱或用户名' }, { status: 400 })
+  }
+
   if (!user) {
     const fail = recordFailedAttempt(ip)
     return NextResponse.json({
       error: fail.locked
         ? `登录尝试过于频繁，请 ${Math.ceil(fail.retryAfter! / 60)} 分钟后再试`
-        : `用户名或密码错误（还剩 ${fail.remaining} 次尝试）`,
+        : `账号或密码错误（还剩 ${fail.remaining} 次尝试）`,
     }, { status: fail.locked ? 429 : 401 })
+  }
+
+  if (user.status === 'banned') {
+    return NextResponse.json({ error: '账号已被封禁' }, { status: 403 })
   }
 
   const valid = await bcrypt.compare(password, user.password)
@@ -48,21 +58,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       error: fail.locked
         ? `登录尝试过于频繁，请 ${Math.ceil(fail.retryAfter! / 60)} 分钟后再试`
-        : `用户名或密码错误（还剩 ${fail.remaining} 次尝试）`,
+        : `账号或密码错误（还剩 ${fail.remaining} 次尝试）`,
     }, { status: fail.locked ? 429 : 401 })
   }
 
-  // 登录成功，清除失败记录
   clearAttempts(ip)
 
-  const token = await createToken({ username: user.username })
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
 
-  const response = NextResponse.json({ success: true })
+  const token = await createToken({ userId: user.id, username: user.username, role: user.role })
+
+  const response = NextResponse.json({
+    success: true,
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      role: user.role,
+      createdAt: user.createdAt?.toISOString?.() ?? user.createdAt,
+      profileChangedAt: user.profileChangedAt?.toISOString?.() ?? user.profileChangedAt,
+      mutedUntil: user.mutedUntil?.toISOString?.() ?? user.mutedUntil,
+      mutedReason: user.mutedReason,
+    },
+  })
+
   response.cookies.set('auth_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24, // 1 day
+    maxAge: 60 * 60 * 24 * 10,
     path: '/',
   })
 

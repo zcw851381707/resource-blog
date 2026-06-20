@@ -77,10 +77,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     await deleteCoverFile(oldDrama.scheduleImage)
   }
 
+  // 自动管理完成状态：当前集数 >= 总集数 → 自动完结
+  const autoCompleted = (body.currentEpisode != null && body.totalEpisodes != null && body.currentEpisode >= body.totalEpisodes)
+  const finalIsCompleted = autoCompleted ? true : body.isCompleted === true ? true : false
+  const finalCurrentEpisode = body.currentEpisode
+  const finalManualEpisode = autoCompleted ? null : body.manualEpisode
+
   // 自动管理 completedAt：首次标记完结时按播出日程推算最后一集日期，取消完结时清空
-  const completedAtValue = isCompleted && !oldDrama?.isCompleted
+  const completedAtValue = finalIsCompleted && !oldDrama?.isCompleted
     ? (calcCompletedAt({ startDate, totalEpisodes, episodesPerDay, premiereEpisodes }) || new Date())
-    : !isCompleted && oldDrama?.isCompleted
+    : !finalIsCompleted && oldDrama?.isCompleted
     ? null
     : undefined
 
@@ -106,9 +112,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         expectedDate: expectedDate ? new Date(expectedDate) : null,
         expectedPrecision,
         totalEpisodes,
-        currentEpisode,
-        manualEpisode,
-        isCompleted,
+        currentEpisode: finalCurrentEpisode,
+        manualEpisode: finalManualEpisode,
+        isCompleted: finalIsCompleted,
         premiereEpisodes,
         ...(completedAtValue !== undefined ? { completedAt: completedAtValue } : {}),
         startDate: startDate ? new Date(startDate) : null,

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import DramaGrid from '@/components/DramaGrid'
 import ShareModal from '@/components/ShareModal'
 import { isNewlyAiredActive, isRecentlyCompleted } from '@/lib/drama-schedule'
+import { useAuth } from '@/lib/auth-context'
 
 interface DramaInfo {
   id: string
@@ -94,11 +95,9 @@ function getEpisodeLabel(d: DramaInfo): string {
     if (d.totalEpisodes) return `全${d.totalEpisodes}集`
     return '已完结'
   }
-  // 首播连更后，已播集数至少是 premiereEpisodes
-  let ep = d.manualEpisode ?? d.currentEpisode
-  if (d.premiereEpisodes && d.startDate && new Date(d.startDate) <= new Date()) {
-    ep = Math.max(ep || 0, d.premiereEpisodes)
-  }
+  // 手动设定的集数优先（0 视为未设置），否则用 currentEpisode
+  const hasManual = d.manualEpisode != null && d.manualEpisode > 0
+  let ep = hasManual ? d.manualEpisode : d.currentEpisode
   if (ep && d.totalEpisodes) return `更新至第${ep}集，共${d.totalEpisodes}集`
   if (ep) return `更新至第${ep}集`
   if (d.totalEpisodes) return `全${d.totalEpisodes}集`
@@ -460,12 +459,13 @@ export default function DramaDetailClient({
             <button
               type="button"
               onClick={() => setShowShare(true)}
-              className="shrink-0 mt-1 w-7 h-7 rounded-full flex items-center justify-center hover:bg-[var(--bg-secondary)] active:scale-90 transition-all text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+              className="shrink-0 mt-1 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
               title="分享"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
               </svg>
+              分享
             </button>
           </div>
           {drama.originalTitle && (
@@ -568,6 +568,18 @@ export default function DramaDetailClient({
             </div>
           )}
 
+          {/* 互动按钮组（追剧 / 收藏 / 预约） */}
+          <InteractionBar
+            dramaId={drama.id}
+            isUpcoming={drama.isUpcoming}
+            totalEpisodes={drama.totalEpisodes}
+            currentEp={(() => {
+              const hasManual = drama.manualEpisode != null && drama.manualEpisode > 0
+              let ep = hasManual ? drama.manualEpisode : drama.currentEpisode
+              return ep || 0
+            })()}
+          />
+
           {/* 简介 */}
           {drama.description && (
             <div className="mt-5">
@@ -577,6 +589,9 @@ export default function DramaDetailClient({
               </p>
             </div>
           )}
+
+          {/* 评分 */}
+          <RatingSection dramaId={drama.id} />
 
           {/* 播出日历海报 */}
           {drama.scheduleImage && (
@@ -816,6 +831,13 @@ export default function DramaDetailClient({
         </div>
       )}
 
+      {/* 评论（通栏横条，放在下载区和热门推荐之间） */}
+      <div className="max-w-5xl mx-auto mt-10 px-4">
+        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5 md:p-6">
+          <CommentSection dramaId={drama.id} />
+        </div>
+      </div>
+
       {/* 热门推荐 */}
       {related.length > 0 && (
         <div className="mt-10">
@@ -851,4 +873,591 @@ export default function DramaDetailClient({
       />
     </div>
   )
+}
+
+// ============ 互动按钮组（收藏 / 追剧 / 预约 / 进度） ============
+function InteractionBar({ dramaId, isUpcoming, totalEpisodes, currentEp }: { dramaId: string; isUpcoming?: boolean; totalEpisodes: number | null | undefined; currentEp: number }) {
+  const { user } = useAuth()
+  const [favorited, setFavorited] = useState(false)
+  const [followStatus, setFollowStatus] = useState<'watching' | 'planned' | 'completed' | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [subscribed, setSubscribed] = useState(false)
+  const [subCount, setSubCount] = useState(0)
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false)
+  const [progressOpen, setProgressOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  // 加载初始状态
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    const subsPromise = isUpcoming
+      ? fetch(`/api/subscriptions?dramaId=${dramaId}`).then(r => r.json()).catch(() => ({}))
+      : Promise.resolve({})
+    Promise.all([
+      fetch('/api/favorites').then(r => r.json()),
+      fetch('/api/following').then(r => r.json()),
+      subsPromise,
+    ]).then(([favData, follData, subsData]) => {
+      if (cancelled) return
+      const favIds = new Set((favData.items || []).map((i: { dramaId: string }) => i.dramaId))
+      setFavorited(favIds.has(dramaId))
+      const item = (follData.items || []).find((i: { dramaId: string }) => i.dramaId === dramaId)
+      if (item) {
+        setFollowStatus(item.status)
+        setProgress(item.progress || 0)
+      }
+      if (isUpcoming && subsData) {
+        setSubscribed(!!subsData.subscribed)
+        setSubCount(subsData.count || 0)
+      }
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [user, dramaId, isUpcoming])
+
+  // 点击外部关闭
+  useEffect(() => {
+    if (!statusMenuOpen && !progressOpen) return
+    const handler = () => { setStatusMenuOpen(false); setProgressOpen(false) }
+    setTimeout(() => document.addEventListener('click', handler, { once: true }), 0)
+    return () => document.removeEventListener('click', handler)
+  }, [statusMenuOpen, progressOpen])
+
+  const toggleFav = async () => {
+    if (!user || loading) return
+    setLoading(true)
+    const res = await fetch('/api/favorites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dramaId }),
+    })
+    const data = await res.json()
+    if (data.favorited !== undefined) setFavorited(data.favorited)
+    setLoading(false)
+  }
+
+  const setFollow = async (status: 'watching' | 'planned' | 'completed' | 'remove') => {
+    if (!user || loading) return
+    setLoading(true)
+    setStatusMenuOpen(false)
+    const res = await fetch('/api/following', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dramaId, status }),
+    })
+    const data = await res.json()
+    if (status === 'remove') setFollowStatus(null)
+    else if (data.following) setFollowStatus(data.following.status)
+    setLoading(false)
+  }
+
+  const setEp = async (ep: number) => {
+    if (!user || loading) return
+    setLoading(true)
+    setProgressOpen(false)
+    await fetch('/api/following', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dramaId, status: 'watching', progress: ep }),
+    })
+    setProgress(ep)
+    setFollowStatus('watching')
+    setLoading(false)
+  }
+
+  const toggleSubscribe = async () => {
+    if (!user || loading) return
+    setLoading(true)
+    const res = await fetch('/api/subscriptions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dramaId }),
+    })
+    const data = await res.json()
+    if (typeof data.subscribed === 'boolean') setSubscribed(data.subscribed)
+    if (typeof data.count === 'number') setSubCount(data.count)
+    setLoading(false)
+  }
+
+  if (!user) {
+    return (
+      <div className="mt-5 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-3 text-xs text-[var(--text-muted)] text-center">
+        登录后可收藏、想看、追剧{isUpcoming ? '、预约' : ''}、记录看到第几集、分享
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-5 rounded-xl bg-gradient-to-r from-[var(--brand-bg)] to-[var(--brand-grad-to)] border border-[var(--brand-pale)] p-3 flex flex-wrap items-center gap-2">
+      {/* 收藏按钮 */}
+      <button
+        onClick={toggleFav}
+        disabled={loading}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+          favorited
+            ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+            : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--brand)] hover:text-[var(--brand)]'
+        }`}
+      >
+        <svg className="w-3.5 h-3.5" fill={favorited ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+        </svg>
+        {favorited ? '已收藏' : '收藏'}
+      </button>
+
+      {/* 想看按钮 — 独立入口，所有剧都显示 */}
+      <button
+        onClick={() => setFollow(followStatus === 'planned' ? 'remove' : 'planned')}
+        disabled={loading}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+          followStatus === 'planned'
+            ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+            : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--brand)] hover:text-[var(--brand)]'
+        }`}
+      >
+        <svg className="w-3.5 h-3.5" fill={followStatus === 'planned' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
+        </svg>
+        {followStatus === 'planned' ? '想看 ✓' : '想看'}
+      </button>
+
+      {/* 追剧状态按钮（含下拉）— 仅已开播的剧显示 */}
+      {!isUpcoming && (
+        <div className="relative">
+          <button
+            onClick={(e) => { e.stopPropagation(); if (followStatus) setStatusMenuOpen(!statusMenuOpen); else setFollow('watching') }}
+            disabled={loading}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+              followStatus
+                ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+                : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--brand)] hover:text-[var(--brand)]'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M5 4h14l-1 7H6L5 4zM3 4H1m4 0v14a1 1 0 001 1h12a1 1 0 001-1V4M9 11h6"/>
+            </svg>
+            {followStatus === 'watching' ? '追剧中' : followStatus === 'completed' ? '已看完' : '追剧'}
+            {followStatus && (
+              <svg className="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+            )}
+          </button>
+          {statusMenuOpen && followStatus && (
+            <div className="absolute left-0 top-full mt-1 z-20 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg py-1 min-w-[120px]">
+              <button onClick={() => setFollow('watching')} className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--bg-secondary)] ${followStatus === 'watching' ? 'text-[var(--brand)] font-semibold' : 'text-[var(--text-secondary)]'}`}>
+                追剧中
+                {followStatus === 'watching' && <span className="ml-1">✓</span>}
+              </button>
+              <button onClick={() => setFollow('completed')} className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--bg-secondary)] ${followStatus === 'completed' ? 'text-[var(--brand)] font-semibold' : 'text-[var(--text-secondary)]'}`}>
+                标记已看完
+                {followStatus === 'completed' && <span className="ml-1">✓</span>}
+              </button>
+              <div className="h-px bg-[var(--border)] my-1" />
+              <button onClick={() => setFollow('remove')} className="w-full text-left px-3 py-1.5 text-xs text-[var(--danger)] hover:bg-[var(--danger-bg)]">
+                取消追剧
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 预约按钮 — 仅未上映的剧显示 */}
+      {isUpcoming && (
+        <button
+          onClick={toggleSubscribe}
+          disabled={loading}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+            subscribed
+              ? 'bg-[var(--warning)] text-white border-[var(--warning)]'
+              : 'bg-[var(--bg-card)] text-[var(--warning)] border-[var(--warning-border)] hover:border-[var(--warning)]'
+          }`}
+          title={subscribed ? '再次点击取消预约' : '点击预约，开播时通知你'}
+        >
+          <svg className="w-3.5 h-3.5" fill={subscribed ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          {subscribed ? '已预约' : '预约上线'}
+          {subCount > 0 && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+              subscribed ? 'bg-white/25 text-white' : 'bg-[var(--warning-bg)] text-[var(--warning)]'
+            }`}>
+              {subCount} 人
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* 进度标记按钮 — 已开播且有总集数时显示 */}
+      {!isUpcoming && totalEpisodes && totalEpisodes > 0 && (
+        <div className="relative">
+          <button
+            onClick={(e) => { e.stopPropagation(); setProgressOpen(!progressOpen) }}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            看到 EP {progress || 1}
+          </button>
+          {progressOpen && (
+            <div className="absolute left-0 top-full mt-1 z-20 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg p-2 min-w-[160px]">
+              <p className="text-[10px] text-[var(--text-muted)] mb-1.5">标记看到第几集（自动追剧）</p>
+              <div className="grid grid-cols-5 gap-1">
+                {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map(ep => (
+                  <button
+                    key={ep}
+                    onClick={() => setEp(ep)}
+                    className={`text-xs py-1 rounded ${
+                      ep === (progress || 1)
+                        ? 'bg-[var(--brand)] text-white font-semibold'
+                        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--brand-pale)] hover:text-[var(--brand)]'
+                    }`}
+                  >
+                    {ep}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 提示文字 — 追剧中有新集 */}
+      {!isUpcoming && followStatus === 'watching' && currentEp > (progress || 0) && (
+        <span className="text-[10px] text-[var(--danger)] font-medium ml-auto flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)] animate-pulse" />
+          有新集 (EP {currentEp})
+        </span>
+      )}
+
+      {/* 提示文字 — 预约人数 */}
+      {isUpcoming && subCount > 0 && !subscribed && (
+        <span className="text-[10px] text-[var(--warning)] font-medium ml-auto">
+          已有 {subCount} 人预约
+        </span>
+      )}
+
+    </div>
+  )
+}
+
+// ============ 评分组件（星级评分 1-5 → 10 分制显示） ============
+function RatingSection({ dramaId }: { dramaId: string }) {
+  const { user } = useAuth()
+  const loadIdRef = useRef(0) // 防并发覆盖
+  const [avgRating, setAvgRating] = useState(0)
+  const [tenPointScore, setTenPointScore] = useState(0)
+  const [count, setCount] = useState(0)
+  const [distribution, setDistribution] = useState([0, 0, 0, 0, 0])
+  const [myScore, setMyScore] = useState<number | null>(null)
+  const [showScore, setShowScore] = useState(false)
+  const [hoverScore, setHoverScore] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  const load = (force = false) => {
+    const id = ++loadIdRef.current
+    if (!force) setLoading(true)
+    fetch(`/api/ratings?dramaId=${dramaId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (loadIdRef.current !== id) return // 被更新的请求覆盖，丢弃
+        setAvgRating(data.avgRating || 0)
+        setTenPointScore(data.tenPointScore || 0)
+        setCount(data.count || 0)
+        setDistribution(data.distribution || [0, 0, 0, 0, 0])
+        setMyScore(data.myRating || null)
+        setShowScore(!!data.showScore)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (loadIdRef.current === id) setLoading(false)
+      })
+  }
+
+  useEffect(() => { load() }, [dramaId])
+
+  const rate = async (score: number) => {
+    if (!user) return
+    await fetch('/api/ratings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dramaId, score }),
+    })
+    setMyScore(score)
+    load(true) // force = true 不闪 loading
+  }
+
+  // 百分比计算
+  const pcts = count > 0
+    ? distribution.map(c => Math.round((c / count) * 100))
+    : [0, 0, 0, 0, 0]
+  const maxPct = Math.max(...pcts, 1)
+
+  return (
+    <div className="mt-5">
+      <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
+        <span className="w-6 h-6 rounded-md bg-[var(--brand-pale)] flex items-center justify-center text-[var(--brand)]">
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </span>
+        评分
+      </h3>
+      <div className="bg-[var(--bg-card)] border border-[var(--brand-pale)] rounded-xl p-4">
+        <div className="flex items-start gap-6 flex-wrap">
+          {/* 左侧：10分制的大数字 / 收集中状态 */}
+          <div className="text-center shrink-0 min-w-[80px]">
+            {showScore ? (
+              <>
+                <div className="text-3xl font-bold text-[var(--text-primary)]">
+                  {tenPointScore}
+                </div>
+                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{count} 人评价</div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full py-2">
+                <div className="text-3xl font-bold text-[var(--text-muted)]">—</div>
+                <div className="text-[10px] text-[var(--text-muted)] mt-1">评价收集中</div>
+                {count > 0 && (
+                  <div className="text-[9px] text-[var(--text-muted)] mt-0.5">{count} 人已评</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 中间：可点击的星星 */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-0.5 mb-1">
+              {[1, 2, 3, 4, 5].map(star => {
+                const displayScore = hoverScore > 0 ? hoverScore : avgRating
+                const filled = displayScore >= star - 0.25
+                const half = !filled && displayScore >= star - 0.75
+                return (
+                  <button
+                    key={star}
+                    onClick={() => rate(star)}
+                    onMouseEnter={() => user && !myScore && setHoverScore(star)}
+                    onMouseLeave={() => setHoverScore(0)}
+                    className={`text-lg transition-all duration-150 ${user ? 'cursor-pointer hover:scale-125' : 'cursor-default'} ${
+                      filled || half ? 'text-[#FFB940]' : 'text-[var(--border)]'
+                    }`}
+                    title={user ? `评 ${star} 星` : '登录后可评分'}
+                  >
+                    {half ? '★' : filled ? '★' : '☆'}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="text-[10px] text-[var(--text-muted)]">
+              {user
+                ? (myScore ? `你评了 ${myScore} 星 · 点击可修改` : '点击星星评分')
+                : '登录后可评分'}
+            </div>
+          </div>
+
+          {/* 右侧：分布图（百分比显示） */}
+          {count > 0 && (
+            <div className="min-w-[100px] space-y-0.5">
+              {pcts.map((p, i) => (
+                <div key={i} className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
+                  <span className="w-3 shrink-0">{i + 1}</span>
+                  <div className="flex-1 h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#FFB940] transition-all"
+                      style={{ width: `${(p / maxPct) * 100}%` }}
+                    />
+                  </div>
+                  <span className="w-7 text-right">{p}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============ 评论区组件 ============
+function CommentSection({ dramaId }: { dramaId: string }) {
+  const { user, isAdmin } = useAuth()
+  const [comments, setComments] = useState<Array<{ id: string; content: string; createdAt: string; isMine: boolean; isAdmin: boolean; user: { username: string; avatar: string | null } }>>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [input, setInput] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [moderationMsg, setModerationMsg] = useState('')
+
+  const load = (p = page) => {
+    fetch(`/api/comments?dramaId=${dramaId}&page=${p}&limit=10`)
+      .then(r => r.json())
+      .then(data => {
+        setComments(data.items || [])
+        setTotal(data.total || 0)
+        setPage(data.page || 1)
+        setTotalPages(data.totalPages || 1)
+      })
+      .catch(() => {})
+  }
+
+  useEffect(() => { load(1) }, [dramaId])
+
+  const submit = async () => {
+    if (!user || !input.trim() || submitting) return
+    setSubmitting(true)
+    const res = await fetch('/api/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dramaId, content: input.trim() }),
+    })
+    const data = await res.json()
+    setSubmitting(false)
+    if (data.ok) {
+      setInput('')
+      if (data.moderated) {
+        setModerationMsg(data.message || '评论已提交审核')
+        setTimeout(() => setModerationMsg(''), 5000)
+      }
+      load(1)
+    }
+  }
+
+  const remove = async (id: string) => {
+    setDeleting(id)
+    try {
+      const res = await fetch(`/api/comments/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json()
+        console.error('删除失败:', err.error || res.status)
+        return
+      }
+      load(page > 1 ? page : 1)
+    } catch (e) {
+      console.error('删除请求异常:', e)
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  return (
+    <div className="mt-5">
+      <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
+        <span className="w-6 h-6 rounded-md bg-[var(--brand-pale)] flex items-center justify-center text-[var(--brand)]">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </span>
+        评论{total > 0 ? ` (${total})` : ''}
+      </h3>
+
+      {/* 审核提示 */}
+      {moderationMsg && (
+        <div className="mb-3 px-3 py-2 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 text-xs">
+          {moderationMsg}
+        </div>
+      )}
+
+      {/* 输入框 */}
+      {user ? (
+        <div className="mb-4">
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            maxLength={500}
+            placeholder="写下你对这部剧的短评..."
+            rows={2}
+            className="w-full text-sm px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] outline-none focus:border-[var(--brand)] resize-none"
+          />
+          <div className="flex items-center justify-between mt-1.5">
+            <span className="text-[10px] text-[var(--text-muted)]">{input.length}/500</span>
+            <button
+              onClick={submit}
+              disabled={!input.trim() || submitting}
+              className="px-4 py-1.5 rounded-full bg-[var(--brand)] text-white text-xs font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              {submitting ? '发表中...' : '发表'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-3 text-center text-xs text-[var(--text-muted)]">
+          登录后即可发表评论
+        </div>
+      )}
+
+      {/* 评论列表 */}
+      {comments.length === 0 ? (
+        <p className="py-6 text-center text-xs text-[var(--text-muted)]">还没有评论，来写第一条吧</p>
+      ) : (
+        <div className="space-y-3">
+          {comments.map(c => (
+            <div key={c.id} className="flex gap-2.5 p-3 rounded-lg bg-[var(--bg-secondary)]">
+              <div className="relative w-8 h-8 rounded-full shrink-0 bg-[var(--brand-pale)] flex items-center justify-center text-[var(--brand)] text-xs font-bold">
+                {c.user.avatar ? (
+                  <img src={c.user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  c.user.username.slice(0, 1)
+                )}
+                {c.isAdmin && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#FFD700] flex items-center justify-center shadow-sm border-[1.5px] border-[var(--bg-secondary)]"
+                    title="管理员">
+                    <svg className="w-2 h-2" viewBox="0 0 24 24" fill="#B8860B">
+                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                    </svg>
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-medium text-[var(--text-primary)]">{c.user.username}</span>
+                  <span className="text-[9px] text-[var(--text-muted)]">{timeAgoStr(c.createdAt)}</span>
+                  {(c.isMine || isAdmin) && (
+                    <button
+                      onClick={() => remove(c.id)}
+                      disabled={deleting === c.id}
+                      className={`ml-auto text-[10px] transition-colors ${
+                        c.isMine ? 'text-[var(--text-muted)] hover:text-[var(--danger)]' : 'text-[var(--danger)]/60 hover:text-[var(--danger)]'
+                      }`}
+                    >
+                      {deleting === c.id ? '删除中...' : isAdmin && !c.isMine ? '管理员删除' : '删除'}
+                    </button>
+                  )}
+                </div>
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap break-words">{c.content}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 分页 */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-4">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+            <button
+              key={p}
+              onClick={() => load(p)}
+              className={`w-7 h-7 rounded text-xs font-medium transition-colors ${
+                p === page
+                  ? 'bg-[var(--brand)] text-white'
+                  : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--brand-pale)] hover:text-[var(--brand)]'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function timeAgoStr(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return '刚刚'
+  if (min < 60) return `${min} 分钟前`
+  const hour = Math.floor(min / 60)
+  if (hour < 24) return `${hour} 小时前`
+  const day = Math.floor(hour / 24)
+  if (day < 30) return `${day} 天前`
+  return `${Math.floor(day / 30)} 个月前`
 }

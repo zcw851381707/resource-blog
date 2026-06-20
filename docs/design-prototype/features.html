@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>晨光曦·分享站 — 用户功能设计稿 v1（追剧+收藏+互动）</title>
+<style>
+  /* ============ 全局（复用现有风格） ============ */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #FFF5F5;
+    color: #333;
+    line-height: 1.5;
+    padding-bottom: 80px;
+  }
+  :root {
+    --brand: #E8A0A4;
+    --brand-deep: #DB8A90;
+    --brand-pale: #FCE7E8;
+    --bg: #FFF5F5;
+    --bg-card: #FFFFFF;
+    --text: #333333;
+    --text-muted: #999999;
+    --border: #E5E5E5;
+    --error: #E04545;
+    --success: #6BCB77;
+  }
+
+  /* ============ 演示控制条 ============ */
+  .demo-bar {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 24px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 12px;
+    z-index: 1000;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  }
+  .demo-bar a {
+    background: #E8A0A4;
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 12px;
+    text-decoration: none;
+  }
+  .demo-bar a:hover { background: #DB8A90; }
+  .demo-bar .title { letter-spacing: 1px; color: #E8A0A4; font-weight: 600; }
+
+  /* ============ 章节标题 ============ */
+  .section {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 60px 20px 20px;
+  }
+  .section-tag {
+    display: inline-block;
+    background: #FCE7E8;
+    color: #DB8A90;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 8px;
+  }
+  .section-desc {
+    font-size: 14px;
+    color: #999;
+    margin-bottom: 32px;
+    line-height: 1.7;
+  }
+  .section-desc strong { color: #E8A0A4; }
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #E5E5E5, transparent);
+    margin: 40px 0;
+  }
+
+  /* ============ 顶栏（已有，不动） ============ */
+  .navbar {
+    position: sticky; top: 0; z-index: 50;
+    height: 56px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 24px;
+    gap: 24px;
+  }
+  .navbar-logo img { height: 28px; }
+  .navbar-menu {
+    display: flex; gap: 20px; align-items: center;
+    flex: 1;
+  }
+  .navbar-menu a {
+    color: #666; text-decoration: none; font-size: 14px;
+    padding: 6px 4px; transition: color .2s;
+  }
+  .navbar-menu a:hover { color: var(--brand); }
+  .navbar-menu a.active { color: var(--brand); font-weight: 600; }
+
+  /* 用户菜单（升级版：加 4 个入口） */
+  .user-menu {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px 6px 6px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background .2s;
+    position: relative;
+  }
+  .user-menu:hover { background: var(--brand-pale); }
+  .user-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F4B8BA 0%, #E8A0A4 100%);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600;
+    position: relative;
+  }
+  /* 头像上的红点（追剧更新） */
+  .avatar-badge {
+    position: absolute; top: -2px; right: -2px;
+    min-width: 16px; height: 16px;
+    background: var(--error);
+    color: #fff;
+    border-radius: 8px;
+    border: 2px solid #fff;
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    padding: 0 4px;
+  }
+  .user-name { font-size: 13px; color: #555; }
+  .dropdown {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 12px; min-width: 180px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    padding: 6px;
+    display: none;
+  }
+  .dropdown.show { display: block; }
+  .dropdown-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    font-size: 13px; color: #555;
+    border-radius: 8px; cursor: pointer;
+  }
+  .dropdown-item:hover { background: var(--bg); color: var(--brand); }
+  .dropdown-item svg { width: 16px; height: 16px; }
+  .dropdown-item.logout { color: var(--error); }
+  .dropdown-item.logout:hover { background: #FFF0F0; }
+  .dropdown-badge {
+    margin-left: auto;
+    background: var(--brand);
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+  }
+  .dropdown-divider {
+    height: 1px; background: var(--border); margin: 4px 0;
+  }
+
+  /* ============ 通用：容器 ============ */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 20px;
+  }
+  .page-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px;
+  }
+  .page-title {
+    font-size: 22px; font-weight: 700; color: #333;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .page-title-icon {
+    width: 28px; height: 28px;
+    background: var(--brand-pale);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--brand);
+  }
+  .page-stat {
+    font-size: 13px; color: #999;
+  }
+  .page-stat strong { color: var(--brand); font-size: 16px; margin: 0 2px; }
+
+  /* ============ 页面 1：追剧列表 ============ */
+  .status-tabs {
+    display: flex; gap: 4px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    margin-bottom: 24px;
+    width: fit-content;
+  }
+  .status-tab {
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #999;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .status-tab:hover { color: var(--brand); }
+  .status-tab.active {
+    background: var(--brand);
+    color: #fff;
+    font-weight: 600;
+  }
+  .status-tab .count {
+    background: rgba(255,255,255,0.25);
+    padding: 1px 7px;
+    border-radius: 8px;
+    font-size: 11px;
+  }
+  .status-tab:not(.active) .count {
+    background: var(--brand-pale);
+    color: var(--brand);
+  }
+
+  /* 追剧条目（一行一个，横向卡片） */
+  .following-list {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .following-item {
+    background: #fff;
+    border-radius: 16px;
+    padding: 16px;
+    display: flex; gap: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: all .2s;
+    position: relative;
+  }
+  .following-item:hover {
+    box-shadow: 0 6px 20px rgba(232,160,164,0.12);
+    transform: translateY(-1px);
+  }
+  .following-cover {
+    width: 80px; height: 110px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #F4B8BA 0%, #E8A0A4 100%);
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.5);
+    font-size: 11px;
+  }
+  .following-cover img { width: 100%; height: 100%; object-fit: cover; }
+  .following-cover .ep-badge {
+    position: absolute; bottom: 4px; left: 4px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .following-info {
+    flex: 1;
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+    min-width: 0;
+  }
+  .following-title-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .following-title {
+    font-size: 15px; font-weight: 600; color: #333;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* 更新小红点 */
+  .new-dot {
+    width: 7px; height: 7px;
+    background: var(--error);
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(224,69,69,0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(224,69,69,0); }
+  }
+  .new-tag {
+    background: #FFE8E8;
+    color: var(--error);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .following-meta {
+    font-size: 12px; color: #999;
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap;
+  }
+  .following-meta .dot { color: #DDD; }
+  .following-meta .ep-progress {
+    color: var(--brand); font-weight: 600;
+  }
+
+  /* 追剧进度条（看到第几集） */
+  .progress-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: #999;
+  }
+  .progress-bar {
+    flex: 1; height: 4px;
+    background: var(--brand-pale);
+    border-radius: 2px;
+    overflow: hidden;
+    max-width: 200px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--brand) 0%, var(--brand-deep) 100%);
+    border-radius: 2px;
+  }
+
+  .following-actions {
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0;
+  }
+  .btn-text {
+    background: transparent;
+    color: #999;
+    border: none;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  .btn-text:hover { background: var(--bg); color: var(--brand); }
+  .btn-mini {
+    background: var(--brand-pale);
+    color: var(--brand);
+    border: none;
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-mini:hover { background: var(--brand); color: #fff; }
+  .btn-mini.outline {
+    background: transparent;
+    border: 1px solid var(--brand-pale);
+    color: var(--brand);
+  }
+
+  /* 空状态 */
+  .empty-state {
+    text-align: center;
+    padding: 80px 20px;
+  }
+  .empty-icon {
+    width: 100px; height: 100px;
+    margin: 0 auto 20px;
+    background: var(--brand-pale);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--brand);
+  }
+  .empty-title {
+    font-size: 16px; color: #666;
+    margin-bottom: 8px;
+  }
+  .empty-desc {
+    font-size: 13px; color: #999;
+    margin-bottom: 24px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #F4B8BA 0%, #E8A0A4 100%);
+    color: #fff;
+    border: none;
+    padding: 12px 32px;
+    font-size: 14px;
+    border-radius: 24px;
+    cursor: pointer;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(232,160,164,0.3);
+  }
+
+  /* ============ 页面 2：收藏页 ============ */
+  .favorites-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+  }
+  .fav-card {
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: all .25s;
+    cursor: pointer;
+    position: relative;
+  }
+  .fav-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(232,160,164,0.15);
+  }
+  .fav-cover {
+    aspect-ratio: 3/4;
+    background: linear-gradient(135deg, #F4B8BA 0%, #E8A0A4 100%);
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.5);
+  }
+  .fav-cover img { width: 100%; height: 100%; object-fit: cover; }
+  /* 收藏的心形角标 */
+  .fav-heart {
+    position: absolute; top: 8px; right: 8px;
+    width: 28px; height: 28px;
+    background: rgba(255,255,255,0.95);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--brand);
+  }
+  /* 右上角"已完结"标签 */
+  .fav-status {
+    position: absolute; top: 8px; left: 8px;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    backdrop-filter: blur(4px);
+  }
+  .fav-status.new { background: rgba(232,160,164,0.9); }
+  .fav-status.airing { background: rgba(107,203,119,0.9); }
+  .fav-info {
+    padding: 12px;
+  }
+  .fav-title {
+    font-size: 14px; font-weight: 600; color: #333;
+    margin-bottom: 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .fav-meta {
+    font-size: 12px; color: #999;
+  }
+  .fav-actions {
+    display: flex; gap: 6px;
+    padding: 0 12px 12px;
+  }
+  .fav-action-btn {
+    flex: 1;
+    background: var(--bg);
+    color: #666;
+    border: none;
+    padding: 6px;
+    font-size: 11px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .fav-action-btn:hover { background: var(--brand-pale); color: var(--brand); }
+  .fav-action-btn.danger:hover { background: #FFE8E8; color: var(--error); }
+
+  /* ============ 页面 3：详情页互动区 ============ */
+  .detail-page-mock {
+    max-width: 1200px; margin: 0 auto; padding: 32px 20px;
+    display: grid; grid-template-columns: 320px 1fr; gap: 32px;
+  }
+  .detail-cover {
+    aspect-ratio: 3/4;
+    background: linear-gradient(135deg, #F4B8BA 0%, #E8A0A4 100%);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(232,160,164,0.2);
+  }
+  .detail-info h1 {
+    font-size: 28px; font-weight: 700; color: #333;
+    margin-bottom: 8px;
+  }
+  .detail-original {
+    font-size: 13px; color: #999;
+    margin-bottom: 16px;
+  }
+  .detail-tags {
+    display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .tag {
+    background: var(--brand-pale);
+    color: var(--brand);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 10px;
+  }
+  .tag.outline { background: #fff; border: 1px solid var(--border); color: #999; }
+
+  /* 互动按钮组（核心新增） */
+  .interaction-bar {
+    background: linear-gradient(135deg, #FFF5F5 0%, #FFEAEA 100%);
+    border: 1px solid var(--brand-pale);
+    border-radius: 14px;
+    padding: 16px;
+    margin: 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .interact-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #666;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .interact-btn:hover { border-color: var(--brand); color: var(--brand); }
+  .interact-btn.active {
+    background: var(--brand);
+    color: #fff;
+    border-color: var(--brand);
+    font-weight: 600;
+  }
+  .interact-btn.active svg { fill: #fff; stroke: #fff; }
+  .interact-btn svg { width: 14px; height: 14px; }
+
+  /* 评分区 */
+  .rating-area {
+    background: #fff;
+    border: 1px solid var(--brand-pale);
+    border-radius: 14px;
+    padding: 20px;
+    margin: 16px 0;
+  }
+  .rating-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .rating-score {
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .rating-score-num {
+    font-size: 32px; font-weight: 700; color: var(--brand);
+  }
+  .rating-score-max {
+    font-size: 13px; color: #999;
+  }
+  .stars {
+    display: inline-flex; gap: 2px;
+  }
+  .star {
+    color: #E5E5E5;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .star.filled { color: #FFB940; }
+  .star.half { background: linear-gradient(90deg, #FFB940 50%, #E5E5E5 50%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .rating-count {
+    font-size: 12px; color: #999;
+  }
+
+  /* 状态徽章 */
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .status-badge.airing { background: #E8F7EB; color: #4CAF50; }
+  .status-badge.completed { background: #F0F0F0; color: #999; }
+  .status-badge.upcoming { background: #FFF3E0; color: #FF9800; }
+
+  /* ============ 页面 4：个人中心升级 ============ */
+  .profile-page {
+    max-width: 1200px; margin: 0 auto; padding: 32px 20px;
+    display: grid; grid-template-columns: 220px 1fr; gap: 24px;
+  }
+  .profile-sidebar {
+    background: #fff;
+    border-radius: 16px;
+    padding: 16px;
+    height: fit-content;
+  }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: #666;
+    font-size: 13px;
+    cursor: pointer;
+    margin-bottom: 2px;
+  }
+  .sidebar-item:hover { background: var(--bg); color: var(--brand); }
+  .sidebar-item.active {
+    background: var(--brand-pale);
+    color: var(--brand);
+    font-weight: 600;
+  }
+  .sidebar-item .count-pill {
+    margin-left: auto;
+    background: var(--brand);
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+  }
+  .sidebar-divider {
+    height: 1px; background: var(--border);
+    margin: 8px 0;
+  }
+  .sidebar-item.logout { color: var(--error); }
+  .sidebar-item.logout:hover { background: #FFE8E8; }
+
+  .profile-main {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+  }
+
+  /* 顶部概览卡 */
+  .overview-card {
+    background: linear-gradient(135deg, #FFF5F5 0%, #FCE7E8 100%);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 24px;
+  }
+  .overview-avatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F4B8BA 0%, #E8A0A4 100%);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .overview-info { flex: 1; }
+  .overview-name {
+    font-size: 20px; font-weight: 700; color: #333;
+    margin-bottom: 4px;
+  }
+  .overview-meta {
+    font-size: 12px; color: #999;
+  }
+  /* 概览统计：追剧数 / 收藏数 / 评论数 */
+  .overview-stats {
+    display: flex; gap: 20px;
+  }
+  .stat-item {
+    text-align: center;
+    padding: 0 16px;
+    border-left: 1px solid rgba(232,160,164,0.3);
+  }
+  .stat-num {
+    font-size: 18px; font-weight: 700; color: var(--brand);
+  }
+  .stat-label {
+    font-size: 11px; color: #999;
+    margin-top: 2px;
+  }
+
+  /* ============ 移动端预览 ============ */
+  .mobile-frame {
+    width: 375px;
+    height: 720px;
+    background: #fff;
+    border-radius: 32px;
+    border: 8px solid #333;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    overflow: hidden;
+    margin: 0 auto;
+    position: relative;
+  }
+  .mobile-screen {
+    width: 100%; height: 100%;
+    overflow-y: auto;
+    background: var(--bg);
+    position: relative;
+  }
+  .mobile-nav {
+    background: #fff;
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .mobile-nav img { height: 24px; }
+  .mobile-content { padding: 16px; }
+
+  /* 移动端卡片缩略 */
+  .mobile-following-item {
+    background: #fff;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex; gap: 12px;
+    margin-bottom: 10px;
+  }
+  .mobile-cover {
+    width: 56px; height: 80px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #F4B8BA 0%, #E8A0A4 100%);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .mobile-cover .new-tag {
+    position: absolute; top: -3px; right: -3px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--error);
+    border: 2px solid #fff;
+  }
+
+  /* ============ 注释卡片 ============ */
+  .annotation {
+    background: #FFF9E6;
+    border-left: 3px solid #FFC107;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 12px 0;
+    font-size: 12px;
+    color: #8B6914;
+    line-height: 1.7;
+  }
+  .annotation strong { color: #6B4F00; }
+
+  /* 关键改动说明 */
+  .change-list {
+    background: #F0F8FF;
+    border-left: 3px solid #4A90E2;
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .change-list h4 {
+    color: #2C5F94;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  .change-list ul {
+    margin-left: 20px;
+    font-size: 13px;
+    color: #3A6A9E;
+    line-height: 1.8;
+  }
+  .change-list li::marker { color: #4A90E2; }
+
+  /* 对比展示 */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .compare-item {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .compare-item.old { border-color: #E5E5E5; }
+  .compare-item.new { border-color: var(--brand); background: #FFFAFB; }
+  .compare-tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .compare-item.old .compare-tag { background: #E5E5E5; color: #999; }
+  .compare-item.new .compare-tag { background: var(--brand-pale); color: var(--brand); }
+
+  /* 字段排版工具 */
+  .flex { display: flex; }
+  .gap-1 { gap: 4px; }
+  .gap-2 { gap: 8px; }
+  .gap-3 { gap: 12px; }
+  .gap-4 { gap: 16px; }
+  .items-center { align-items: center; }
+  .flex-1 { flex: 1; }
+  .text-muted { color: var(--text-muted); }
+  .text-sm { font-size: 12px; }
+  .mt-2 { margin-top: 8px; }
+  .mt-4 { margin-top: 16px; }
+  .mb-2 { margin-bottom: 8px; }
+  .mb-4 { margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<!-- ============ 顶部导航（演示用） ============ -->
+<div class="demo-bar">
+  <span class="title">用户功能设计稿 v1</span>
+  <a href="#p1">1. 追剧</a>
+  <a href="#p2">2. 收藏</a>
+  <a href="#p3">3. 详情页</a>
+  <a href="#p4">4. 个人中心</a>
+  <a href="#nav">↑ 导航栏</a>
+</div>
+
+<!-- ============================================================ -->
+<!-- 导航栏升级说明 -->
+<!-- ============================================================ -->
+<section class="section" id="nav">
+  <span class="section-tag">改造点 0</span>
+  <h2 class="section-title">导航栏（已有，不破坏）</h2>
+  <p class="section-desc">
+    现有导航栏保持不动，只在 <strong>右上角用户菜单</strong> 内新增 4 个入口。
+    登录后头像出现 <strong>红点角标</strong>（追剧有更新数），用 Badge 提示用户回到个人空间。
+  </p>
+
+  <div class="annotation">
+    <strong>📌 改动原则：</strong>导航栏结构、Logo、主菜单（首页/全部/排期/搜索/分享）全部保留。
+    只在用户下拉菜单里增加入口：<strong>我的追剧、我的收藏、我的评论</strong>。
+    头像右上角的<strong>小红点</strong>是关键细节 — 让用户每次访问都能看到"我有内容要看了"。
+  </div>
+
+  <!-- 顶栏示例 -->
+  <div class="navbar" style="position: relative; margin: 24px 0;">
+    <div class="navbar-logo">
+      <img src="../../public/晨.png" alt="晨光曦" style="height: 28px;" />
+    </div>
+    <div class="navbar-menu">
+      <a href="#" class="active">首页</a>
+      <a href="#">全部</a>
+      <a href="#">排期</a>
+      <a href="#">搜索</a>
+      <a href="#">分享</a>
+    </div>
+    <div class="user-menu" onclick="document.getElementById('userDropdown').classList.toggle('show')">
+      <div class="user-avatar">
+        小
+        <div class="avatar-badge">3</div>
+      </div>
+      <span class="user-name">小明</span>
+      <svg width="12" height="12" fill="none" stroke="#999" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+
+      <div class="dropdown show" id="userDropdown">
+        <div class="dropdown-item">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          个人中心
+        </div>
+        <div class="dropdown-item">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 4h14l-1 7H6L5 4zM3 4H1m4 0v14a1 1 0 001 1h12a1 1 0 001-1V4M9 11h6"/></svg>
+          我的追剧
+          <span class="dropdown-badge">2 有更新</span>
+        </div>
+        <div class="dropdown-item">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          我的收藏
+          <span class="dropdown-badge">12</span>
+        </div>
+        <div class="dropdown-item">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          我的评论
+          <span class="dropdown-badge">5</span>
+        </div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item logout">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          退出登录
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================================================ -->
+<!-- 页面 1：追剧列表 -->
+<!-- ============================================================ -->
+<section class="section" id="p1">
+  <span class="section-tag">页面 1 · /following</span>
+  <h2 class="section-title">追剧列表</h2>
+  <p class="section-desc">
+    追剧是「正在看」的意思。三个状态分组：<strong>追剧中 / 想看 / 已看完</strong>。
+    <strong>追剧中</strong>列表里，最近有更新的剧会显示<strong>红色脉动小点</strong> + 「有更新」标签。
+  </p>
+
+  <!-- 真实页面预览 -->
+  <div style="background: #fff; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 24px;">
+    <!-- 顶栏 -->
+    <div class="navbar" style="position: relative;">
+      <div class="navbar-logo"><img src="../../public/晨.png" alt="" style="height: 28px;"></div>
+      <div class="navbar-menu">
+        <a href="#">首页</a><a href="#">全部</a><a href="#" class="active">追剧</a><a href="#">排期</a><a href="#">分享</a>
+      </div>
+      <div class="user-avatar">小<div class="avatar-badge">2</div></div>
+    </div>
+
+    <div class="container">
+      <div class="page-header">
+        <div class="page-title">
+          <div class="page-title-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 4h14l-1 7H6L5 4zM3 4H1m4 0v14a1 1 0 001 1h12a1 1 0 001-1V4M9 11h6"/></svg>
+          </div>
+          我的追剧
+        </div>
+        <div class="page-stat">共 <strong>8</strong> 部</div>
+      </div>
+
+      <!-- 状态切换 Tab -->
+      <div class="status-tabs">
+        <div class="status-tab active">追剧中 <span class="count">4</span></div>
+        <div class="status-tab">想看 <span class="count">3</span></div>
+        <div class="status-tab">已看完 <span class="count">1</span></div>
+      </div>
+
+      <!-- 追剧列表 -->
+      <div class="following-list">
+        <!-- 条目 1：有更新（关键） -->
+        <div class="following-item" style="border-left: 3px solid var(--error);">
+          <div class="following-cover">
+            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 110'><rect fill='%23F4B8BA' width='80' height='110'/></svg>" />
+            <span class="ep-badge">EP 8</span>
+          </div>
+          <div class="following-info">
+            <div>
+              <div class="following-title-row">
+                <span class="following-title">春山境</span>
+                <span class="new-tag">有新集</span>
+                <span class="new-dot"></span>
+              </div>
+              <div class="following-meta">
+                <span class="status-badge airing">● 播出中</span>
+                <span class="dot">·</span>
+                <span>周二、周四 22:00</span>
+              </div>
+            </div>
+            <div class="progress-row">
+              <span>看到</span>
+              <span class="ep-progress">EP 6</span>
+              <div class="progress-bar"><div class="progress-fill" style="width: 75%;"></div></div>
+              <span>/ 8 集</span>
+            </div>
+          </div>
+          <div class="following-actions">
+            <button class="btn-mini">继续看</button>
+            <button class="btn-text">…</button>
+          </div>
+        </div>
+
+        <!-- 条目 2：追剧中（无更新） -->
+        <div class="following-item">
+          <div class="following-cover">
+            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 110'><rect fill='%23E8A0A4' width='80' height='110'/></svg>" />
+            <span class="ep-badge">EP 4</span>
+          </div>
+          <div class="following-info">
+            <div>
+              <div class="following-title-row">
+                <span class="following-title">寒阳风起时</span>
+              </div>
+              <div class="following-meta">
+                <span class="status-badge airing">● 播出中</span>
+                <span class="dot">·</span>
+                <span>周一 20:00</span>
+              </div>
+            </div>
+            <div class="progress-row">
+              <span>看到</span>
+              <span class="ep-progress">EP 2</span>
+              <div class="progress-bar"><div class="progress-fill" style="width: 50%;"></div></div>
+              <span>/ 4 集</span>
+            </div>
+          </div>
+          <div class="following-actions">
+            <button class="btn-mini">继续看</button>
+            <button class="btn-text">…</button>
+          </div>
+        </div>
+
+        <!-- 条目 3：追剧中（已完结） -->
+        <div class="following-item">
+          <div class="following-cover" style="background: linear-gradient(135deg, #B0B0B0 0%, #888 100%);">
+            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 110'><rect fill='%23B0B0B0' width='80' height='110'/></svg>" />
+            <span class="ep-badge">完结</span>
+          </div>
+          <div class="following-info">
+            <div>
+              <div class="following-title-row">
+                <span class="following-title">野画集</span>
+                <span class="status-badge completed">✓ 已完结</span>
+              </div>
+              <div class="following-meta">
+                <span>2025 年 · 全 16 集</span>
+                <span class="dot">·</span>
+                <span>⭐ 4.5</span>
+              </div>
+            </div>
+            <div class="progress-row">
+              <span>看到</span>
+              <span class="ep-progress">EP 16</span>
+              <div class="progress-bar"><div class="progress-fill" style="width: 100%; background: #6BCB77;"></div></div>
+              <span>✓ 已看完</span>
+            </div>
+          </div>
+          <div class="following-actions">
+            <button class="btn-mini outline">重看</button>
+            <button class="btn-text">…</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设计要点说明 -->
+  <div class="annotation">
+    <strong>🎯 设计要点：</strong><br>
+    1. <strong>状态 Tab</strong> 用药丸形 + 角标数量，活跃态用品牌色填充<br>
+    2. <strong>红点 + "有新集" 标签</strong> 用脉动动画，吸引眼球<br>
+    3. <strong>进度条</strong> 让用户立刻知道"还剩多少没看"<br>
+    4. <strong>左边框变色</strong> 替代破坏性"提醒"标记，柔和不刺眼<br>
+    5. <strong>「… 」菜单</strong> 放"取消追剧 / 标记已看完 / 不再提醒"等次要操作
+  </div>
+
+  <!-- 想看 tab 切换态 -->
+  <h3 style="margin-top: 32px; font-size: 16px;">↘ 切到「想看」Tab 的样子</h3>
+  <div style="background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-top: 12px;">
+    <div class="following-list">
+      <div class="following-item">
+        <div class="following-cover" style="background: linear-gradient(135deg, #FFC89A 0%, #FFA060 100%);">
+          <span class="ep-badge" style="left: 50%; transform: translateX(-50%);">预告</span>
+        </div>
+        <div class="following-info">
+          <div>
+            <div class="following-title-row">
+              <span class="following-title">无声的证词 第二季</span>
+              <span class="status-badge upcoming">⏰ 即将上线</span>
+            </div>
+            <div class="following-meta">
+              <span>预计 2026-08 上线</span>
+              <span class="dot">·</span>
+              <span>全 12 集</span>
+            </div>
+          </div>
+          <div class="progress-row text-muted text-sm">
+            加入想看清单 5 天前
+          </div>
+        </div>
+        <div class="following-actions">
+          <button class="btn-mini">开始追</button>
+          <button class="btn-text">…</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 空状态 -->
+  <h3 style="margin-top: 32px; font-size: 16px;">↘ 空状态（用户还没追任何剧）</h3>
+  <div style="background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-top: 12px;">
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M5 4h14l-1 7H6L5 4zM3 4H1m4 0v14a1 1 0 001 1h12a1 1 0 001-1V4M9 11h6"/></svg>
+      </div>
+      <div class="empty-title">还没有追任何剧</div>
+      <div class="empty-desc">在剧集详情页点击「追剧」，会出现在这里</div>
+      <button class="btn-primary">去发现好剧</button>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================================================ -->
+<!-- 页面 2：收藏页 -->
+<!-- ============================================================ -->
+<section class="section" id="p2">
+  <span class="section-tag">页面 2 · /favorites</span>
+  <h2 class="section-title">收藏页</h2>
+  <p class="section-desc">
+    收藏是「想看」的意思（区别于追剧的「正在看」）。卡片式网格布局，
+    复用首页剧集卡片样式，加 <strong>❤️ 角标</strong> 标记"已收藏"，hover 出现快捷操作。
+  </p>
+
+  <!-- 对比：旧 vs 新 -->
+  <h3 style="font-size: 16px; margin-top: 8px;">↘ 现有「我的收藏」Tab vs 新独立页面</h3>
+  <div class="compare">
+    <div class="compare-item old">
+      <span class="compare-tag">现状（个人中心 Tab）</span>
+      <div style="text-align: center; padding: 40px 20px;">
+        <svg width="48" height="48" fill="none" stroke="#DDD" stroke-width="1" viewBox="0 0 24 24" style="margin: 0 auto 8px;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <div class="text-sm text-muted">你还没有收藏任何内容</div>
+      </div>
+    </div>
+    <div class="compare-item new">
+      <span class="compare-tag">升级后（独立页 + 卡片）</span>
+      <div style="padding: 8px;">
+        <div class="favorites-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="fav-card">
+            <div class="fav-cover">
+              <span class="fav-status completed">已完结</span>
+              <span class="fav-heart">
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+              </span>
+            </div>
+            <div class="fav-info">
+              <div class="fav-title">野画集</div>
+              <div class="fav-meta">⭐ 4.5 · 全 16 集</div>
+            </div>
+          </div>
+          <div class="fav-card">
+            <div class="fav-cover">
+              <span class="fav-status new">新剧</span>
+              <span class="fav-heart">
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+              </span>
+            </div>
+            <div class="fav-info">
+              <div class="fav-title">春山境</div>
+              <div class="fav-meta">⭐ 4.2 · 更新中</div>
+            </div>
+          </div>
+          <div class="fav-card">
+            <div class="fav-cover">
+              <span class="fav-status airing">播出中</span>
+              <span class="fav-heart">
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+              </span>
+            </div>
+            <div class="fav-info">
+              <div class="fav-title">寒阳风起时</div>
+              <div class="fav-meta">⭐ 4.0 · 播出中</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 真实页面 -->
+  <h3 style="font-size: 16px; margin-top: 32px;">↘ 完整收藏页效果</h3>
+  <div style="background: #fff; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-top: 12px;">
+    <div class="navbar" style="position: relative;">
+      <div class="navbar-logo"><img src="../../public/晨.png" alt="" style="height: 28px;"></div>
+      <div class="navbar-menu">
+        <a href="#">首页</a><a href="#">全部</a><a href="#">追剧</a><a href="#">排期</a><a href="#" class="active">收藏</a>
+      </div>
+      <div class="user-avatar">小</div>
+    </div>
+    <div class="container">
+      <div class="page-header">
+        <div class="page-title">
+          <div class="page-title-icon">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          </div>
+          我的收藏
+        </div>
+        <div class="page-stat">共 <strong>12</strong> 部 · <span style="color: var(--brand); cursor: pointer;">管理</span></div>
+      </div>
+
+      <!-- 顶部筛选 -->
+      <div class="flex gap-2 mb-4">
+        <div class="status-tab active" style="padding: 6px 14px; font-size: 12px;">全部</div>
+        <div class="status-tab" style="padding: 6px 14px; font-size: 12px;">播出中 <span class="count">5</span></div>
+        <div class="status-tab" style="padding: 6px 14px; font-size: 12px;">已完结 <span class="count">7</span></div>
+        <div class="status-tab" style="padding: 6px 14px; font-size: 12px;">新剧 <span class="count">2</span></div>
+      </div>
+
+      <div class="favorites-grid">
+        <div class="fav-card">
+          <div class="fav-cover">
+            <span class="fav-status new">新剧</span>
+            <span class="fav-heart"><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>
+          </div>
+          <div class="fav-info">
+            <div class="fav-title">春山境</div>
+            <div class="fav-meta">⭐ 4.2 · 更新至 EP 8</div>
+          </div>
+          <div class="fav-actions">
+            <button class="fav-action-btn">查看</button>
+            <button class="fav-action-btn danger">取消</button>
+          </div>
+        </div>
+
+        <div class="fav-card">
+          <div class="fav-cover">
+            <span class="fav-status completed">已完结</span>
+            <span class="fav-heart"><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>
+          </div>
+          <div class="fav-info">
+            <div class="fav-title">野画集</div>
+            <div class="fav-meta">⭐ 4.5 · 全 16 集</div>
+          </div>
+          <div class="fav-actions">
+            <button class="fav-action-btn">查看</button>
+            <button class="fav-action-btn danger">取消</button>
+          </div>
+        </div>
+
+        <div class="fav-card">
+          <div class="fav-cover">
+            <span class="fav-status airing">播出中</span>
+            <span class="fav-heart"><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>
+          </div>
+          <div class="fav-info">
+            <div class="fav-title">寒阳风起时</div>
+            <div class="fav-meta">⭐ 4.0 · 周一更新</div>
+          </div>
+          <div class="fav-actions">
+            <button class="fav-action-btn">查看</button>
+            <button class="fav-action-btn danger">取消</button>
+          </div>
+        </div>
+
+        <div class="fav-card">
+          <div class="fav-cover" style="background: linear-gradient(135deg, #B0B0B0 0%, #888 100%);">
+            <span class="fav-status completed">已完结</span>
+            <span class="fav-heart"><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>
+          </div>
+          <div class="fav-info">
+            <div class="fav-title">无声的证词</div>
+            <div class="fav-meta">⭐ 4.8 · 全 12 集</div>
+          </div>
+          <div class="fav-actions">
+            <button class="fav-action-btn">查看</button>
+            <button class="fav-action-btn danger">取消</button>
+          </div>
+        </div>
+
+        <div class="fav-card">
+          <div class="fav-cover" style="background: linear-gradient(135deg, #FFC89A 0%, #FFA060 100%);">
+            <span class="fav-status" style="background: rgba(255,152,0,0.9);">即将上线</span>
+            <span class="fav-heart"><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>
+          </div>
+          <div class="fav-info">
+            <div class="fav-title">暗夜行者</div>
+            <div class="fav-meta">⏰ 预计 8 月上线</div>
+          </div>
+          <div class="fav-actions">
+            <button class="fav-action-btn">查看</button>
+            <button class="fav-action-btn danger">取消</button>
+          </div>
+        </div>
+
+        <div class="fav-card">
+          <div class="fav-cover">
+            <span class="fav-status airing">播出中</span>
+            <span class="fav-heart"><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>
+          </div>
+          <div class="fav-info">
+            <div class="fav-title">晚风不问归期</div>
+            <div class="fav-meta">⭐ 3.9 · 周五更新</div>
+          </div>
+          <div class="fav-actions">
+            <button class="fav-action-btn">查看</button>
+            <button class="fav-action-btn danger">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>🎨 设计要点：</strong><br>
+    1. <strong>复用首页卡片样式</strong>：相同的封面比例（3:4）+ 圆角 + 阴影<br>
+    2. <strong>右上角心形</strong>：常驻显示「已收藏」状态（区别于未收藏的灰色心）<br>
+    3. <strong>左下角状态标签</strong>：和首页卡片一致（新剧/播出中/已完结/即将上线）<br>
+    4. <strong>底部双按钮</strong>：「查看」+「取消」— 极简，避免误操作
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================================================ -->
+<!-- 页面 3：详情页互动 -->
+<!-- ============================================================ -->
+<section class="section" id="p3">
+  <span class="section-tag">页面 3 · 详情页</span>
+  <h2 class="section-title">详情页改造（最小侵入）</h2>
+  <p class="section-desc">
+    现有详情页（封面 + 标题 + 标签 + 简介 + 下载）保持不动。
+    只在 <strong>「简介」和「下载」之间</strong> 插入互动按钮组 + 评分卡。
+    改动一行插入位置，<strong>不动原有结构</strong>。
+  </p>
+
+  <!-- 对比 -->
+  <h3 style="font-size: 16px; margin-top: 8px;">↘ 改动点对比</h3>
+  <div class="compare">
+    <div class="compare-item old">
+      <span class="compare-tag">现状</span>
+      <div style="padding: 16px; line-height: 1.8; color: #999; font-size: 13px;">
+        <div>┌─ 封面（左侧大图）─────┐</div>
+        <div>│ 剧名                    │</div>
+        <div>│ 标签：泰剧 / 已完结      │</div>
+        <div>│ 集数：全 16 集           │</div>
+        <div>│ 简介：...                │</div>
+        <div>└────────────────────────┘</div>
+        <div style="margin-top: 12px;">┌─ 下载地址 ─────────┐</div>
+        <div>│ 网盘 1 / 网盘 2      │</div>
+        <div>└────────────────────────┘</div>
+      </div>
+    </div>
+    <div class="compare-item new">
+      <span class="compare-tag">改造后</span>
+      <div style="padding: 16px; line-height: 1.8; color: #666; font-size: 13px;">
+        <div>┌─ 封面（左侧大图）─────┐</div>
+        <div>│ 剧名                    │</div>
+        <div>│ 标签：泰剧 / 已完结      │</div>
+        <div>│ 集数：全 16 集           │</div>
+        <div>│ 简介：...                │</div>
+        <div style="color: var(--brand); font-weight: 600;">├─ <strong>【新增】互动按钮组 ─┤</div>
+        <div style="color: var(--brand); font-weight: 600;">│ ⭐ 评分 · ❤️ 收藏 · 📋 追剧 │</div>
+        <div>├────────────────────────┤</div>
+        <div>│ <span style="color: var(--brand);">下载</span>  ← 原位不动         │</div>
+        <div>└────────────────────────┘</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 详情页核心区 -->
+  <h3 style="font-size: 16px; margin-top: 32px;">↘ 互动区设计（详情页核心改动）</h3>
+  <div style="background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-top: 12px;">
+    <div class="detail-info">
+      <h1>春山境</h1>
+      <div class="detail-original">Spring Mountain Realm</div>
+      <div class="detail-tags">
+        <span class="tag">中国</span>
+        <span class="tag">悬疑</span>
+        <span class="tag outline">已完结</span>
+        <span class="tag outline">全 16 集</span>
+      </div>
+
+      <!-- 评分区 -->
+      <div class="rating-area">
+        <div class="rating-header">
+          <div>
+            <div class="rating-score">
+              <span class="rating-score-num">4.5</span>
+              <span class="rating-score-max">/ 5.0</span>
+            </div>
+            <div class="rating-count">基于 128 人评价</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="stars" style="justify-content: flex-end;">
+              <span class="star filled">★</span>
+              <span class="star filled">★</span>
+              <span class="star filled">★</span>
+              <span class="star filled">★</span>
+              <span class="star half">★</span>
+            </div>
+            <div class="text-sm text-muted mt-2" style="margin-top: 4px;">点击星星评分</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 互动按钮组（核心） -->
+      <div class="interaction-bar">
+        <div class="interact-btn active">
+          <svg fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          已收藏
+        </div>
+        <div class="interact-btn active">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 4h14l-1 7H6L5 4zM3 4H1m4 0v14a1 1 0 001 1h12a1 1 0 001-1V4M9 11h6"/></svg>
+          追剧中
+        </div>
+        <div class="interact-btn">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          看到 EP 6
+        </div>
+        <div class="interact-btn" style="margin-left: auto;">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+          分享
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 按钮的三种状态 -->
+  <h3 style="font-size: 16px; margin-top: 24px;">↘ 按钮三态：未操作 / 已激活 / hover</h3>
+  <div class="compare" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="compare-item new" style="text-align: center;">
+      <span class="compare-tag">未操作态</span>
+      <div class="interaction-bar" style="margin: 8px 0; padding: 12px; justify-content: center;">
+        <div class="interact-btn">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          收藏
+        </div>
+      </div>
+      <div class="text-sm text-muted">白底 + 灰描边 + 灰图标</div>
+    </div>
+    <div class="compare-item new" style="text-align: center;">
+      <span class="compare-tag">已激活态</span>
+      <div class="interaction-bar" style="margin: 8px 0; padding: 12px; justify-content: center;">
+        <div class="interact-btn active">
+          <svg fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          已收藏
+        </div>
+      </div>
+      <div class="text-sm text-muted">粉色实心 + 文字变 "已 X"</div>
+    </div>
+    <div class="compare-item new" style="text-align: center;">
+      <span class="compare-tag">下拉态</span>
+      <div style="background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin: 8px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+        <div class="dropdown-item" style="padding: 6px 10px;">想看</div>
+        <div class="dropdown-item" style="padding: 6px 10px; color: var(--brand); background: var(--brand-pale);">追剧中 ✓</div>
+        <div class="dropdown-item" style="padding: 6px 10px;">已看完</div>
+        <div class="dropdown-item" style="padding: 6px 10px; color: var(--error);">取消追剧</div>
+      </div>
+      <div class="text-sm text-muted">长按/点击「… 」展开</div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>📐 布局原则：</strong><br>
+    1. <strong>不破坏原结构</strong>：插入位置在「简介」和「下载」之间，是最合理的阅读动线<br>
+    2. <strong>小屏适配</strong>：按钮组会换行，「分享」按钮靠右自动 margin-left: auto<br>
+    3. <strong>不打扰下载</strong>：粉色调弱化（不抢主操作"看资源"），保持「下载」按钮仍是核心
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================================================ -->
+<!-- 页面 4：个人中心升级 -->
+<!-- ============================================================ -->
+<section class="section" id="p4">
+  <span class="section-tag">页面 4 · /profile</span>
+  <h2 class="section-title">个人中心升级</h2>
+  <p class="section-desc">
+    现有"个人中心"是「我的资料 + 我的收藏（空）」两个 Tab。
+    升级为 4 个 Tab：<strong>资料 / 追剧 / 收藏 / 评论</strong>，顶部加 <strong>概览统计</strong>。
+  </p>
+
+  <!-- 对比 -->
+  <h3 style="font-size: 16px; margin-top: 8px;">↘ 侧边栏 vs 顶部分区（两种交互）</h3>
+  <div class="compare">
+    <div class="compare-item new">
+      <span class="compare-tag">A 方案：左侧 Tab（适合多分类）</span>
+      <div class="profile-page" style="padding: 0; max-width: 100%;">
+        <div class="profile-sidebar">
+          <div class="sidebar-item active">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            我的资料
+          </div>
+          <div class="sidebar-item">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 4h14l-1 7H6L5 4zM3 4H1m4 0v14a1 1 0 001 1h12a1 1 0 001-1V4M9 11h6"/></svg>
+            我的追剧
+            <span class="count-pill">2</span>
+          </div>
+          <div class="sidebar-item">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+            我的收藏
+            <span class="count-pill">12</span>
+          </div>
+          <div class="sidebar-item">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            我的评论
+            <span class="count-pill">5</span>
+          </div>
+          <div class="sidebar-divider"></div>
+          <div class="sidebar-item">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/></svg>
+            修改密码
+          </div>
+          <div class="sidebar-item logout">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            退出登录
+          </div>
+        </div>
+        <div class="profile-main">
+          <div class="overview-card">
+            <div class="overview-avatar">小</div>
+            <div class="overview-info">
+              <div class="overview-name">小明</div>
+              <div class="overview-meta">xiaoming@qq.com · 注册 12 天</div>
+            </div>
+            <div class="overview-stats">
+              <div class="stat-item"><div class="stat-num">8</div><div class="stat-label">追剧</div></div>
+              <div class="stat-item"><div class="stat-num">12</div><div class="stat-label">收藏</div></div>
+              <div class="stat-item"><div class="stat-num">5</div><div class="stat-label">评论</div></div>
+            </div>
+          </div>
+          <div class="text-sm text-muted" style="text-align: center; padding: 40px;">
+            👈 选一个 Tab 看内容
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="compare-item new">
+      <span class="compare-tag">B 方案：顶部 Tab（现有风格，保留）</span>
+      <div style="padding: 16px; background: #fff; border-radius: 12px;">
+        <div class="overview-card" style="margin-bottom: 16px;">
+          <div class="overview-avatar">小</div>
+          <div class="overview-info">
+            <div class="overview-name">小明</div>
+            <div class="overview-meta">追剧 8 · 收藏 12 · 评论 5</div>
+          </div>
+        </div>
+        <div class="status-tabs" style="margin: 0;">
+          <div class="status-tab active">资料</div>
+          <div class="status-tab">追剧 4</div>
+          <div class="status-tab">收藏 12</div>
+          <div class="status-tab">评论 5</div>
+        </div>
+        <div style="margin-top: 16px; font-size: 12px; color: #999; line-height: 1.8;">
+          └── 沿用现有「我的资料」Tab 内容<br>
+          └── 「追剧」Tab 嵌入追剧列表（复用 /following 组件）<br>
+          └── 「收藏」Tab 嵌入收藏卡片网格（复用 /favorites 组件）
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>🤔 A vs B 怎么选？</strong><br>
+    <strong>推荐 A 方案（侧边栏）</strong> — 原因：4 个 Tab 横向铺开会挤，竖向侧栏更清晰。<br>
+    如果坚持最小改动，<strong>B 方案（顶部 Tab）</strong> 也是 OK 的，组件完全复用。
+  </div>
+
+  <!-- 修改密码弹窗 -->
+  <h3 style="font-size: 16px; margin-top: 32px;">↘ 修改密码弹窗（沿用现有，不变）</h3>
+  <div style="background: rgba(0,0,0,0.3); padding: 40px; border-radius: 12px; margin-top: 12px; text-align: center;">
+    <div style="background: #fff; border-radius: 12px; padding: 24px; max-width: 360px; margin: 0 auto; text-align: left;">
+      <h3 style="font-size: 16px; margin-bottom: 16px;">修改密码</h3>
+      <div style="font-size: 12px; color: #999; margin-bottom: 12px;">旧密码</div>
+      <input type="password" placeholder="请输入旧密码" style="width: 100%; padding: 8px 12px; border: 1px solid #E5E5E5; border-radius: 8px; margin-bottom: 12px; font-size: 13px;" />
+      <div style="font-size: 12px; color: #999; margin-bottom: 12px;">新密码</div>
+      <input type="password" placeholder="至少 6 位" style="width: 100%; padding: 8px 12px; border: 1px solid #E5E5E5; border-radius: 8px; margin-bottom: 12px; font-size: 13px;" />
+      <div style="font-size: 12px; color: #999; margin-bottom: 12px;">确认新密码</div>
+      <input type="password" placeholder="请再次输入" style="width: 100%; padding: 8px 12px; border: 1px solid #E5E5E5; border-radius: 8px; margin-bottom: 20px; font-size: 13px;" />
+      <div class="flex gap-2" style="justify-content: flex-end;">
+        <button style="background: #F5F5F5; color: #666; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">取消</button>
+        <button style="background: #E8A0A4; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">确定修改</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================================================ -->
+<!-- 移动端预览 -->
+<!-- ============================================================ -->
+<section class="section">
+  <span class="section-tag">移动端适配</span>
+  <h2 class="section-title">手机上看是什么样？</h2>
+  <p class="section-desc">
+    移动端直接复用桌面端组件，关键改动：<br>
+    • <strong>顶栏</strong>：用户头像移到右上角（不加下拉菜单，点击直接跳个人中心）<br>
+    • <strong>Tab</strong>：状态 Tab 自动横向滚动<br>
+    • <strong>卡片</strong>：2 列网格（桌面 5 列）
+  </p>
+
+  <div style="display: flex; gap: 32px; justify-content: center; flex-wrap: wrap;">
+    <!-- 手机 1：追剧列表 -->
+    <div>
+      <h3 style="text-align: center; font-size: 14px; margin-bottom: 12px;">/following 追剧</h3>
+      <div class="mobile-frame">
+        <div class="mobile-screen">
+          <div class="mobile-nav">
+            <img src="../../public/晨.png" alt="" />
+            <div class="user-avatar" style="width: 28px; height: 28px; font-size: 12px;">
+              小
+              <div class="avatar-badge" style="min-width: 14px; height: 14px; font-size: 9px;">2</div>
+            </div>
+          </div>
+          <div class="mobile-content">
+            <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">📺 我的追剧</div>
+            <div class="text-sm text-muted mb-4">共 8 部 · 2 部有更新</div>
+
+            <div class="status-tabs" style="width: 100%; overflow-x: auto; margin-bottom: 16px;">
+              <div class="status-tab active" style="font-size: 12px; padding: 6px 12px;">追剧中 4</div>
+              <div class="status-tab" style="font-size: 12px; padding: 6px 12px;">想看 3</div>
+              <div class="status-tab" style="font-size: 12px; padding: 6px 12px;">已看完 1</div>
+            </div>
+
+            <div class="mobile-following-item" style="border-left: 3px solid var(--error);">
+              <div class="mobile-cover">
+                <span class="new-tag"></span>
+              </div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                  <span>春山境</span>
+                  <span class="new-dot" style="width: 6px; height: 6px;"></span>
+                </div>
+                <div class="text-sm text-muted">⭐ 4.2 · EP 6/8</div>
+                <div style="margin-top: 6px; display: flex; gap: 6px;">
+                  <button class="btn-mini" style="font-size: 11px; padding: 4px 10px;">继续看</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="mobile-following-item">
+              <div class="mobile-cover" style="background: linear-gradient(135deg, #B0B0B0 0%, #888 100%);"></div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">野画集</div>
+                <div class="text-sm text-muted">⭐ 4.5 · 全 16 集</div>
+                <div style="margin-top: 6px;">
+                  <span style="background: #E5E5E5; color: #999; font-size: 10px; padding: 2px 6px; border-radius: 4px;">✓ 已看完</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 手机 2：详情页互动 -->
+    <div>
+      <h3 style="text-align: center; font-size: 14px; margin-bottom: 12px;">详情页（手机）</h3>
+      <div class="mobile-frame">
+        <div class="mobile-screen">
+          <div class="mobile-nav">
+            <span style="font-size: 16px; color: #666;">←</span>
+            <div class="user-avatar" style="width: 28px; height: 28px; font-size: 12px;">小</div>
+          </div>
+          <div class="mobile-content">
+            <div style="aspect-ratio: 3/4; background: linear-gradient(135deg, #F4B8BA 0%, #E8A0A4 100%); border-radius: 12px; margin-bottom: 12px;"></div>
+            <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">春山境</h2>
+            <div class="flex gap-1 mb-4" style="flex-wrap: wrap;">
+              <span class="tag">中国</span>
+              <span class="tag">悬疑</span>
+            </div>
+            <div class="rating-area" style="padding: 12px; margin-bottom: 12px;">
+              <div class="flex items-center" style="justify-content: space-between;">
+                <div>
+                  <span class="rating-score-num" style="font-size: 24px;">4.5</span>
+                  <span class="text-sm text-muted"> / 5.0</span>
+                </div>
+                <div class="stars">
+                  <span class="star filled">★</span>
+                  <span class="star filled">★</span>
+                  <span class="star filled">★</span>
+                  <span class="star filled">★</span>
+                  <span class="star">★</span>
+                </div>
+              </div>
+            </div>
+            <div class="interaction-bar" style="padding: 8px; gap: 6px;">
+              <div class="interact-btn active" style="font-size: 11px; padding: 6px 10px;">
+                <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                已收藏
+              </div>
+              <div class="interact-btn active" style="font-size: 11px; padding: 6px 10px;">追剧中</div>
+              <div class="interact-btn" style="font-size: 11px; padding: 6px 10px;">EP 6</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============================================================ -->
+<!-- 改动总结 -->
+<!-- ============================================================ -->
+<section class="section">
+  <span class="section-tag">总结</span>
+  <h2 class="section-title">改动清单（最小化）</h2>
+
+  <div class="change-list">
+    <h4>📦 数据库（Prisma schema 新增 2 个表）</h4>
+    <ul>
+      <li><strong>UserFavorite</strong> — (userId, dramaId, createdAt) — 唯一约束</li>
+      <li><strong>UserFollowing</strong> — (userId, dramaId, status, progress) — status: watching / planned / completed / dropped</li>
+    </ul>
+  </div>
+
+  <div class="change-list">
+    <h4>📄 新增页面（2 个）</h4>
+    <ul>
+      <li><code>/following</code> — 追剧列表页（按状态 Tab 分组）</li>
+      <li><code>/favorites</code> — 收藏页（卡片网格）</li>
+    </ul>
+  </div>
+
+  <div class="change-list">
+    <h4>🔧 改造现有页面（3 个）</h4>
+    <ul>
+      <li><strong>SiteChrome.tsx</strong>：用户下拉菜单加 3 个入口 + 头像红点</li>
+      <li><strong>剧集详情页</strong>：简介和下载之间插入互动按钮组（2 行代码）</li>
+      <li><strong>/profile</strong>：个人中心 Tab 从 2 个扩到 4 个 + 顶部概览统计</li>
+    </ul>
+  </div>
+
+  <div class="change-list">
+    <h4>🔌 新增 API（4 个）</h4>
+    <ul>
+      <li><code>POST /api/favorites</code> — 添加/取消收藏</li>
+      <li><code>GET /api/favorites</code> — 我的收藏列表</li>
+      <li><code>POST /api/following</code> — 追剧状态变更（追/想看/已看完/弃剧）</li>
+      <li><code>GET /api/following</code> — 我的追剧列表</li>
+    </ul>
+  </div>
+
+  <div class="change-list">
+    <h4>🛡️ 不动文件（确保不破坏）</h4>
+    <ul>
+      <li>首页 / 排期 / 全部剧集 / 搜索 / 资源请求 / 用户协议 — 完全不动</li>
+      <li>DramaCard 组件 — 不动（避免影响 5+ 个引用页面）</li>
+      <li>现有 API 路由 — 不动</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+  // 简单的 demo 控制：下拉菜单点击
+  document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('userDropdown');
+    if (dropdown && !e.target.closest('.user-menu')) {
+      dropdown.classList.remove('show');
+    }
+  });
+</script>
+
+</body>
+</html>

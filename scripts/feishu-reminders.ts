@@ -19,7 +19,7 @@ async function main() {
   const candidates = await prisma.drama.findMany({
     where: {
       OR: [
-        { isOnSchedule: true, airDays: { not: null } },
+        { isOnSchedule: true, isCompleted: false, airDays: { not: null } },
         { isUpcoming: true, expectedDate: { not: null } },
       ],
     },

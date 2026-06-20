@@ -99,7 +99,7 @@ function DramaItem({ drama, dayIndex, weekDates }: { drama: DramaData; dayIndex:
 
   // 判断该日是否为首播日（日期比对，不依赖 currentEpisode）
   const thisDayDate = weekDates[dayIndex]
-  const isPremiereDay2 = !!(drama.startDate && drama.premiereEpisodes &&
+  const isPremiereDay2 = !!(drama.startDate &&
     new Date(drama.startDate).toDateString() === thisDayDate.toDateString())
 
   // 集数计算：每周一 0:00 快照，本周内不变
@@ -130,7 +130,7 @@ function DramaItem({ drama, dayIndex, weekDates }: { drama: DramaData; dayIndex:
         displayEp = drama.totalEpisodes - remainingAirDays * epd
       } else if (isPremiereDay2) {
         // 首播日：直接显示 premiereEpisodes（连更集数）
-        displayEp = drama.premiereEpisodes!
+        displayEp = drama.premiereEpisodes ?? ep
       } else if (ep || drama.premiereEpisodes) {
         const epNum = ep || 0
         const epd = drama.episodesPerDay || 1
@@ -759,7 +759,7 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                                   return n >= monday && n <= sunday 
                                 })()
                                 const posterIsPremiere = !ep && (isPremiered || isInPremiereWeek)
-                                const posterIsPremiereDay2 = !!(d.startDate && d.premiereEpisodes &&
+                                const posterIsPremiereDay2 = !!(d.startDate &&
                                   new Date(d.startDate).toDateString() === weekDates[idx].toDateString())
                                 let displayEp: number | null | undefined = ep
                                 const isPausedDay = !!(d.pausedDays && d.pausedDays.split(',').map((s: string) => s.trim()).includes(String(idx)))
@@ -779,7 +779,7 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                                       const remainingAirDays = airDayIndices.filter((dd: number) => dd > idx && dd <= completedDayOfWeek && !pausedIndices2.includes(dd)).length
                                       displayEp = d.totalEpisodes - remainingAirDays * epd
                                     } else if (posterIsPremiereDay2) {
-                                      displayEp = d.premiereEpisodes!
+                                      displayEp = d.premiereEpisodes ?? ep
                                     } else if (ep || d.premiereEpisodes) {
                                       const epNum = ep || 0
                                       const epd = d.episodesPerDay || 1
