@@ -821,14 +821,13 @@ export default function AdminDrama() {
               <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg z-20 overflow-hidden">
                 {dupResults.map(d => (
                   <button key={d.id} type="button" onClick={() => {
-                    window.location.hash = d.id
-                    handleEdit(d)
+                    setForm(prev => ({ ...prev, title: d.title, originalTitle: d.originalTitle || '', region: d.region || prev.region }))
                     setDupResults([])
                   }}
                     className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--bg-secondary)] transition-colors border-b border-[var(--border)] last:border-b-0 text-left">
-                    <span className="text-[var(--brand)] font-medium shrink-0">#{d.title}</span>
+                    <span className="text-[var(--brand)] font-medium shrink-0">{d.title}</span>
                     {d.originalTitle && <span className="text-[var(--text-muted)] text-xs truncate">{d.originalTitle}</span>}
-                    <span className="text-xs text-orange-500 ml-auto shrink-0">跳转编辑 →</span>
+                    <span className="text-xs text-[var(--text-muted)] ml-auto shrink-0">填充 ↑</span>
                   </button>
                 ))}
               </div>

@@ -78,7 +78,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   // 自动管理完成状态：当前集数 >= 总集数 → 自动完结
-  const autoCompleted = (body.currentEpisode != null && body.totalEpisodes != null && body.currentEpisode >= body.totalEpisodes)
+  const autoCompleted = (body.currentEpisode != null && body.totalEpisodes != null && body.totalEpisodes > 0 && body.currentEpisode >= body.totalEpisodes)
   const finalIsCompleted = autoCompleted ? true : body.isCompleted === true ? true : false
   const finalCurrentEpisode = body.currentEpisode
   const finalManualEpisode = autoCompleted ? null : body.manualEpisode
