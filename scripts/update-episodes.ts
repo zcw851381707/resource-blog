@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-async function updateEpisodes() {
+export async function updateEpisodesBatch() {
   const now = new Date()
   const todayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1
   const todayKey = String(todayIdx)
@@ -59,7 +59,7 @@ async function updateEpisodes() {
   for (const u of updates) {
     await prisma.drama.update({
       where: { id: u.id },
-      data: { currentEpisode: u.newEp, lastEpisodeUpdate: now }
+      data: { currentEpisode: u.newEp, manualEpisode: null, lastEpisodeUpdate: now }
     })
 
     // 自动完结：当前集数达到或超过总集数时
@@ -84,11 +84,16 @@ async function updateEpisodes() {
   // 首播剧自动过渡：expectedDate 已到且播出时间已过 → 从「即将上线」移到「最新上线」
   const premieres = await prisma.drama.findMany({
     where: { isUpcoming: true, expectedDate: { not: null }, expectedPrecision: 'day' },
-    select: { id: true, title: true, expectedDate: true, airTime: true, airDays: true, currentEpisode: true }
+    select: { id: true, title: true, expectedDate: true, airTime: true, airDays: true, currentEpisode: true, lastEpisodeUpdate: true }
   })
 
   const transitions: string[] = []
   for (const p of premieres) {
+    // 防止已首播过渡的剧被重复处理（如 isUpcoming 被意外恢复后重复执行）
+    if (p.lastEpisodeUpdate) {
+      const updateStr = toLocalDateStr(new Date(p.lastEpisodeUpdate))
+      if (updateStr === todayStr) continue
+    }
     const expectedDate = new Date(p.expectedDate!)
     const expectedDay = toLocalDateStr(expectedDate)
     if (expectedDay > todayStr) continue
@@ -114,7 +119,7 @@ async function updateEpisodes() {
         isUpcoming: false,
         isNewlyAired: true,
         isOnSchedule: p.airDays ? true : undefined,
-        currentEpisode: p.currentEpisode ?? 1
+        currentEpisode: (p.currentEpisode ?? 0) || 1
       }
     })
     transitions.push(p.title)
@@ -127,7 +132,10 @@ async function updateEpisodes() {
   await prisma.$disconnect()
 }
 
-updateEpisodes().catch(e => {
-  console.error(e)
-  process.exit(1)
-})
+// 直接运行时执行，被 import 时不执行
+if (process.argv[1]?.includes('update-episodes')) {
+  updateEpisodesBatch().catch(e => {
+    console.error(e)
+    process.exit(1)
+  })
+}
