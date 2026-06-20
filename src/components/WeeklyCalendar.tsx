@@ -524,7 +524,13 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
       }
       const [ah, am] = (a.airTime || '00:00').split(':').map(Number)
       const [bh, bm] = (b.airTime || '00:00').split(':').map(Number)
-      return (ah * 60 + am) - (bh * 60 + bm)
+      const aAirMins = ah * 60 + am
+      const bAirMins = bh * 60 + bm
+      // 已播且在1小时内的剧，按最近播出排前
+      const aAiredAndInWindow = nowMins >= aAirMins && nowMins < aAirMins + 60
+      const bAiredAndInWindow = nowMins >= bAirMins && nowMins < bAirMins + 60
+      if (aAiredAndInWindow && bAiredAndInWindow) return bAirMins - aAirMins
+      return aAirMins - bAirMins
     })
   }
 
