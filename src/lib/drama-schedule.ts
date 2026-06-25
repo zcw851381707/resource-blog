@@ -2,6 +2,37 @@ import { prisma } from '@/lib/prisma'
 
 const NEWLY_AIRED_DAYS = 45
 
+/** 判断"即将上线"是否仍有效：isUpcoming=1 且预计/首播日期尚未到达，
+ *  或日期是今天但播出时间还没到。 */
+export function isUpcomingActive(drama: {
+  isUpcoming?: boolean | null
+  startDate?: Date | string | null
+  expectedDate?: Date | string | null
+  airTime?: string | null
+}): boolean {
+  if (!drama.isUpcoming) return false
+  const refDate = drama.startDate || drama.expectedDate
+  if (!refDate) return true // 没有日期，保留即将上线状态
+  const now = new Date()
+  const ref = new Date(refDate)
+  ref.setHours(0, 0, 0, 0)
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  // 日期在未来 → 仍在即将上线
+  if (ref > today) return true
+  // 日期在过去 → 已开播
+  if (ref < today) return false
+  // 日期是今天：检查播出时间是否已到
+  if (drama.airTime) {
+    const [h, m] = drama.airTime.split(':').map(Number)
+    if (!isNaN(h) && !isNaN(m)) {
+      const airMinutes = h * 60 + m
+      const nowMinutes = now.getHours() * 60 + now.getMinutes()
+      return nowMinutes < airMinutes // 还没到播出时间 → 仍在即将上线
+    }
+  }
+  return false // 已到播出时间或未设置 → 已开播
+}
+
 /** 判断新播标签是否仍在有效期内（首播后 45 天内） */
 export function isNewlyAiredActive(drama: {
   isNewlyAired?: boolean | null
@@ -49,6 +80,62 @@ export function calcCompletedAt(drama: {
   const d = new Date(drama.startDate)
   d.setDate(d.getDate() + daysAfter)
   return d
+}
+
+/** 根据首播日期 + 播出日 + 集数规则自动计算当前集数。
+ *  第一个更新日 = premiereEpisodes（或 episodesPerDay），之后每个 +episodesPerDay。
+ *  当天的播出：未到 airTime 不算已播（按"播出时间到达后"才算）。
+ *  优先返回 manualEpisode；未设置或 0 时按规则计算。 */
+export function calcCurrentEpisode(drama: {
+  currentEpisode?: number | null
+  manualEpisode?: number | null
+  startDate?: Date | string | null
+  premiereEpisodes?: number | null
+  episodesPerDay?: number | null
+  airDays?: string | null
+  airTime?: string | null
+}): number {
+  // 手动指定的集数优先（0 视为未设置）
+  if (drama.manualEpisode != null && drama.manualEpisode > 0) {
+    return drama.manualEpisode
+  }
+  const start = drama.startDate ? new Date(drama.startDate) : null
+  if (!start || start > new Date()) return drama.currentEpisode || 0
+
+  const airDays = (drama.airDays || '').split(',').map(s => s.trim()).filter(Boolean)
+  if (airDays.length === 0) return drama.currentEpisode || 0
+
+  const prem = drama.premiereEpisodes || drama.episodesPerDay || 1
+  const epd = drama.episodesPerDay || 1
+
+  // 解析播出时间（默认 20:00）
+  const [airH = 20, airM = 0] = (drama.airTime || '20:00').split(':').map(Number)
+  const airMinutes = airH * 60 + airM
+
+  const now = new Date()
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+  const startDay = new Date(start)
+  startDay.setHours(0, 0, 0, 0)
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+
+  let airCount = 0
+  const cursor = new Date(startDay)
+  while (cursor <= today) {
+    const jsDay = cursor.getDay()
+    const formDay = String(jsDay === 0 ? 6 : jsDay - 1)
+    if (airDays.includes(formDay)) {
+      // 今天：必须到 airTime 才算播；之前的日期：都算播
+      const isToday = cursor.getTime() === today.getTime()
+      if (!isToday || nowMinutes >= airMinutes) {
+        airCount++
+      }
+    }
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  if (airCount === 0) return drama.currentEpisode || 0
+  return prem + (airCount - 1) * epd
 }
 
 export type ScheduleDrama = {
@@ -160,6 +247,8 @@ export function buildWeeklySchedule<T extends ScheduleDrama>(dramas: T[], now = 
   // 即将上线（精确日期）：从目标周一开始进入追剧日历，和首页保持一致。
   for (const drama of dramas) {
     if (!drama.isUpcoming || !drama.expectedDate) continue
+    // 预计日期已过的不再按"即将上线"处理
+    if (!isUpcomingActive(drama)) continue
     if (drama.expectedPrecision !== 'day') continue
 
     const expected = new Date(drama.expectedDate)

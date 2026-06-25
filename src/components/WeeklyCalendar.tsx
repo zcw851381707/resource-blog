@@ -4,10 +4,12 @@ import { useRef, useCallback, useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toCanvas } from 'html-to-image'
+import { isUpcomingActive } from '@/lib/drama-schedule'
 
 interface DramaData {
   id: string
   title: string
+  originalTitle?: string | null
   slug: string
   coverImage?: string | null
   airTime?: string | null
@@ -130,7 +132,7 @@ function DramaItem({ drama, dayIndex, weekDates }: { drama: DramaData; dayIndex:
         displayEp = drama.totalEpisodes - remainingAirDays * epd
       } else if (isPremiereDay2) {
         // 首播日：直接显示 premiereEpisodes（连更集数）
-        displayEp = drama.premiereEpisodes ?? ep
+        displayEp = drama.premiereEpisodes ?? (ep || (drama.episodesPerDay || 1))
       } else if (ep || drama.premiereEpisodes) {
         const epNum = ep || 0
         const epd = drama.episodesPerDay || 1
@@ -222,8 +224,8 @@ function DramaItem({ drama, dayIndex, weekDates }: { drama: DramaData; dayIndex:
         )}
       </div>
       <div className="w-[110px] md:w-[130px] shrink-0">
-        <p className="text-sm font-medium text-[var(--text-primary)] line-clamp-1 leading-tight">{drama.title}{(drama.seriesOrder ?? 0) > 0 && ` 第${drama.seriesOrder}季`}</p>
-        {drama.isUpcoming && drama.expectedDate && !isPremiered && !isInPremiereWeek ? (
+        <p className="text-sm font-medium text-[var(--text-primary)] line-clamp-1 leading-tight">{(drama.title || drama.originalTitle)}{(drama.seriesOrder ?? 0) > 0 && ` 第${drama.seriesOrder}季`}</p>
+        {isUpcomingActive(drama) && drama.expectedDate && !isPremiered && !isInPremiereWeek ? (
           <p className="text-xs text-orange-500 mt-0.5">预计 {(() => {
             const d = new Date(drama.expectedDate!)
             const dateStr = `${d.getMonth() + 1}月${d.getDate()}日`
@@ -231,15 +233,20 @@ function DramaItem({ drama, dayIndex, weekDates }: { drama: DramaData; dayIndex:
           })()} 上线</p>
         ) : (() => {
           const total = drama.totalEpisodes || 0
-          const premiereBadge = isPremiereDay2 || isPremiereDay || (!ep && drama.expectedDate && !isPremiered)
           const finishedBadge = total > 0 && displayEp && displayEp >= total && !isPausedDay
+          // 首播标签：仅首播日当天显示，非整个首播周；已完结时不显示首播
+          const premiereBadge = !finishedBadge && (isPremiereDay2 || (isPremiereDay && !ep && drama.expectedDate && !isPremiered && (() => {
+            if (!drama.airDays) return true
+            const days = drama.airDays.split(',').map(Number).sort((a,b)=>a-b)
+            return dayIndex === days[0]
+          })()))
           const hasBadge = premiereBadge || finishedBadge || isPausedDay || drama.isSuspended
 
           const epText = (() => {
             if (drama.isSuspended) return null
             if (!displayEp) return null
-            // 首播：显示"首播X集"，X = 首播集数 或 每日更新集数
-            if (isPremiereDay2 || (isPremiere && !isPremiered)) {
+            // 首播：仅首播日当天显示"首播X集"
+            if (isPremiereDay2) {
               const count = drama.premiereEpisodes || drama.episodesPerDay || 1
               return `首播${count}集`
             }
@@ -567,19 +574,30 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
     }
     try {
       const isMobile = window.innerWidth < 768
-      const scale = 2
+      const scale = 3  // 1080p 级清晰度：390 × 3 = 1170 宽
+
+      // 等所有图片完全加载完成（避免生成时拿到未解码的图，导致糊）
+      const imgs = el.querySelectorAll('img')
+      await Promise.all(Array.from(imgs).map(img => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve()
+        return new Promise<void>(resolve => {
+          img.onload = () => resolve()
+          img.onerror = () => resolve()
+        })
+      }))
 
       // Step 1: html-to-image 渲染布局（CSS 完美，但 Safari foreignObject 可能丢失图片）
       const canvas = await toCanvas(el, {
         pixelRatio: scale,
         backgroundColor: '#FFF5F5',
+        cacheBust: true,  // 避免 html-to-image 复用低清缓存
       })
 
       // Step 2: 手动把图片画到 canvas 正确位置（覆盖可能丢失的图片区域）
       const ctx = canvas.getContext('2d')!
       const elRect = el.getBoundingClientRect()
-      const imgs = el.querySelectorAll('img')
-      for (const img of Array.from(imgs)) {
+      const redrawImgs = el.querySelectorAll('img')
+      for (const img of Array.from(redrawImgs)) {
         if (!img.complete || img.naturalWidth === 0) continue
         const ir = img.getBoundingClientRect()
         const x = (ir.left - elRect.left) * scale
@@ -785,7 +803,7 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                                       const remainingAirDays = airDayIndices.filter((dd: number) => dd > idx && dd <= completedDayOfWeek && !pausedIndices2.includes(dd)).length
                                       displayEp = d.totalEpisodes - remainingAirDays * epd
                                     } else if (posterIsPremiereDay2) {
-                                      displayEp = d.premiereEpisodes ?? ep
+                                      displayEp = d.premiereEpisodes ?? (ep || (d.episodesPerDay || 1))
                                     } else if (ep || d.premiereEpisodes) {
                                       const epNum = ep || 0
                                       const epd = d.episodesPerDay || 1
@@ -845,16 +863,27 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                                 }
                                 const total = d.totalEpisodes || 0
                                 const posterPaused = isPausedDay
-                                const epLabel = d.isSuspended ? '' : (posterIsPremiereDay2 || (!ep && isPremiered) ? `首播${d.premiereEpisodes || d.episodesPerDay || 1}集` : total > 0 && displayEp ? `第${displayEp}集/共${total}集` : displayEp ? `第${displayEp}集` : isPremiered ? '第1集' : '')
-                                const showPremiere = posterIsPremiereDay2 || isPremiereDay || (!ep && !d.isUpcoming)
+                                const epLabel = d.isSuspended ? '' : (posterIsPremiereDay2 ? `首播${d.premiereEpisodes || d.episodesPerDay || 1}集` : total > 0 && displayEp ? `第${displayEp}集/共${total}集` : displayEp ? `第${displayEp}集` : isPremiered ? '第1集' : '')
                                 const showFinished = total > 0 && displayEp && displayEp >= total && !posterPaused
+                                // 首播标签：仅在首播日当天显示；首播前且本周第一个播出日也显示预告
+                                const isFirstAirDay = !d.airDays || idx === (() => {
+                                  const days = (d.airDays || '').split(',').map(Number).sort((a:number,b:number)=>a-b)
+                                  // 跳过 startDate 之前的播出日
+                                  if (d.startDate) {
+                                    const sd = new Date(d.startDate)
+                                    const sdIdx = sd.getDay() === 0 ? 6 : sd.getDay() - 1
+                                    return days.find((dd: number) => dd >= sdIdx) ?? days[0]
+                                  }
+                                  return days[0]
+                                })()
+                                const showPremiere = !showFinished && (posterIsPremiereDay2 || (isPremiereDay && !ep && d.expectedDate && !isPremiered && isFirstAirDay))
                                 const hasTag = showPremiere || showFinished || posterPaused || d.isSuspended
                                 const line2: string[] = []
                                 if (hasTag && d.airTime && !posterPaused && !d.isSuspended) line2.push(d.airTime)
                                 if (d.isSuspended) line2.push('另行通知')
                                 if (posterPaused) line2.push('停播')
                                 if (epLabel) line2.push(epLabel)
-                                if (!line2.length && d.isUpcoming && d.expectedDate && !isPremiered) {
+                                if (!line2.length && isUpcomingActive(d) && d.expectedDate && !isPremiered) {
                                   const ed = new Date(d.expectedDate!)
                                   line2.push(`${ed.getMonth() + 1}月${ed.getDate()}日`)
                                   if (d.airTime) line2.push(d.airTime)
@@ -867,7 +896,7 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                                       <div style={{ width: '28px', height: '38px', background: '#fdf0f0', borderRadius: '3px', flexShrink: 0 }} />
                                     )}
                                     <div style={{ minWidth: 0, flex: 1, paddingLeft: '6px', paddingRight: di % 2 === 0 ? '3px' : '0' }}>
-                                      <p style={{ fontSize: '11px', fontWeight: 600, color: '#333', margin: 0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}{(d.seriesOrder ?? 0) > 0 ? ` 第${d.seriesOrder}季` : ''}</p>
+                                      <p style={{ fontSize: '11px', fontWeight: 600, color: '#333', margin: 0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(d.title || d.originalTitle)}{(d.seriesOrder ?? 0) > 0 ? ` 第${d.seriesOrder}季` : ''}</p>
                                       {line2.length > 0 && (
                                         <p style={{ fontSize: '10px', color: '#c8a0a4', margin: '1px 0 0' }}>{line2.join(' · ')}</p>
                                       )}

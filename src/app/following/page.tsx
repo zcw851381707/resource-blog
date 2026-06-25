@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { isUpcomingActive } from '@/lib/drama-schedule'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -9,6 +10,7 @@ import { useAuth } from '@/lib/auth-context'
 interface DramaLite {
   id: string
   title: string
+  originalTitle?: string | null
   slug: string
   coverImage?: string | null
   imagePosition?: string | null
@@ -221,7 +223,7 @@ export default function FollowingPage() {
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap mb-1">
                       <Link href={`/drama/${d.slug}`} className="text-sm md:text-base font-semibold text-[var(--text-primary)] hover:text-[var(--brand)] transition-colors truncate">
-                        {d.title}
+                        {d.title || d.originalTitle}
                       </Link>
                       {hasNew && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)]">
@@ -236,7 +238,7 @@ export default function FollowingPage() {
                       {!d.isCompleted && d.isOnSchedule && (
                         <span className="px-1.5 py-0.5 rounded bg-[var(--success-bg)] text-[var(--success)] font-medium">播出中</span>
                       )}
-                      {d.isUpcoming && (
+                      {isUpcomingActive(d) && (
                         <span className="px-1.5 py-0.5 rounded bg-[var(--warning-bg)] text-[var(--warning)] font-medium">即将上线</span>
                       )}
                       {d.airDays && !d.isCompleted && (
@@ -265,7 +267,7 @@ export default function FollowingPage() {
                     <div className="text-[11px] text-[var(--text-muted)] mt-1">✓ 全部看完</div>
                   )}
 
-                  {tab === 'planned' && d.isUpcoming && (
+                  {tab === 'planned' && isUpcomingActive(d) && (
                     <div className="text-[11px] text-[var(--text-muted)] mt-1">⏰ {d.startDate ? new Date(d.startDate).toLocaleDateString('zh-CN') : '即将上线'}</div>
                   )}
                 </div>

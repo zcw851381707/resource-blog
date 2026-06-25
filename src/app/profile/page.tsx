@@ -4,12 +4,14 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
+import { isUpcomingActive } from '@/lib/drama-schedule'
 
 type TabKey = 'info' | 'following' | 'planned' | 'favorites' | 'subscriptions' | 'comments'
 
 interface DramaLite {
   id: string
   title: string
+  originalTitle?: string | null
   slug: string
   coverImage?: string | null
   imagePosition?: string | null
@@ -573,7 +575,7 @@ function ProfileSubscriptionsList({ onChange }: { onChange: () => void }) {
             </Link>
             <div className="flex-1 min-w-0">
               <Link href={`/drama/${d.slug}`} className="block text-sm font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--brand)] transition-colors">
-                {d.title}
+                {d.title || d.originalTitle}
               </Link>
               <p className="text-[11px] text-[var(--warning)] mt-0.5 flex items-center gap-1">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -676,12 +678,12 @@ function ProfileFollowingList({ onChange, defaultSubTab = 'watching' }: { onChan
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--brand)] transition-colors">{d.title}</span>
+                    <span className="text-sm font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--brand)] transition-colors">{d.title || d.originalTitle}</span>
                     {hasNew && <span className="text-[10px] text-[var(--danger)] font-medium">新</span>}
                   </div>
                   <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
                     {subTab === 'watching' && `EP ${userEp || 1}${d.totalEpisodes ? ` / ${d.totalEpisodes}` : ''}`}
-                    {subTab === 'planned' && (d.isUpcoming ? '即将上线' : '想看')}
+                    {subTab === 'planned' && (isUpcomingActive(d) ? '即将上线' : '想看')}
                     {subTab === 'completed' && '✓ 已看完'}
                   </p>
                 </div>
@@ -761,7 +763,7 @@ function ProfileFavoritesList({ onChange }: { onChange: () => void }) {
                   取消
                 </button>
               </div>
-              <p className="text-xs font-medium text-[var(--text-primary)] mt-1.5 truncate group-hover:text-[var(--brand)] transition-colors">{d.title}</p>
+              <p className="text-xs font-medium text-[var(--text-primary)] mt-1.5 truncate group-hover:text-[var(--brand)] transition-colors">{d.title || d.originalTitle}</p>
               <p className="text-[10px] text-[var(--text-muted)] mt-0.5">收藏于 {timeAgo(item.createdAt)}</p>
             </Link>
           )

@@ -6,13 +6,13 @@ import bcrypt from 'bcryptjs'
 export async function POST(request: NextRequest) {
   let body: {
     username: string; email: string; code: string; password: string
-    inviteCode: string; avatar?: string
+    inviteCode: string; avatar?: string; gender?: string; birthday?: string
   }
   try { body = await request.json() } catch {
     return NextResponse.json({ error: '请填写注册信息' }, { status: 400 })
   }
 
-  const { username, email, code, password, inviteCode, avatar } = body
+  const { username, email, code, password, inviteCode, avatar, gender, birthday } = body
 
   // 校验必填
   if (!username?.trim()) return NextResponse.json({ error: '请输入用户名' }, { status: 400 })
@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
       avatar: avatar || null,
       role: 'user',
       lastLoginAt: new Date(),
+      gender: (gender?.trim() === 'male' || gender?.trim() === 'female' || gender?.trim() === 'other') ? gender.trim() : null,
+      birthday: birthday ? new Date(birthday) : null,
     },
   })
 

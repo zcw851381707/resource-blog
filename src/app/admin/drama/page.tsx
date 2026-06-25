@@ -262,12 +262,12 @@ export default function AdminDrama() {
     const links = downloadSlots.filter(l => l.url).map(l => ({
       platform: l.platform, url: l.url, extractCode: l.extractCode || undefined,
     }))
-    // 中文名留空 → 用外文名做主标题
-    const finalTitle = form.title.trim() || form.originalTitle?.trim() || ''
-    const finalOriginalTitle = form.title.trim() ? (form.originalTitle?.trim() || '') : ''
+    // 不再搬运字段：title 留空就留空，详情页会用 originalTitle 兜底显示
+    const finalTitle = form.title.trim()
+    const finalOriginalTitle = form.originalTitle?.trim() || ''
 
-    // 没有填写任何内容时不提交
-    if (!finalTitle && !form.coverImage && !form.description && links.length === 0 && !form.scheduleImage && !form.videoUrl) {
+    // 没有填写任何内容时不提交（但允许只填了外文原名）
+    if (!finalTitle && !finalOriginalTitle && !form.coverImage && !form.description && links.length === 0 && !form.scheduleImage && !form.videoUrl) {
       return
     }
     const payload = {
@@ -427,6 +427,64 @@ export default function AdminDrama() {
     })
     setCompleteTarget(null)
     load()
+  }
+
+  // 通过 Canvas 物理旋转图片后重新上传，返回新 URL（旋转后宽度/高度对调）
+  const rotateImageFile = async (src: string, degrees: 90 | 180 | 270): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        const isClockwise = degrees === 90
+        const w = isClockwise || degrees === 270 ? img.height : img.width
+        const h = isClockwise || degrees === 270 ? img.width : img.height
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')!
+        ctx.translate(w / 2, h / 2)
+        ctx.rotate(degrees * Math.PI / 180)
+        ctx.drawImage(img, -img.width / 2, -img.height / 2)
+        canvas.toBlob(async (blob) => {
+          if (!blob) { resolve(null); return }
+          const file = new File([blob], `rotated-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' })
+          const url = await uploadFile(file)
+          resolve(url)
+        }, 'image/jpeg', 0.92)
+      }
+      img.onerror = () => resolve(null)
+      img.src = src
+    })
+  }
+
+  // 旋转封面：上传后立刻替换 form.coverImage
+  const handleRotateCover = async () => {
+    if (!form.coverImage) return
+    const prevUrl = form.coverImage
+    const newUrl = await rotateImageFile(prevUrl, 90)
+    if (newUrl) {
+      setForm(prev => ({ ...prev, coverImage: newUrl }))
+      setCoverRotation(0)
+    }
+  }
+
+  // 旋转剧照：替换该位置的 url（顺序不变）
+  const handleRotateGallery = async (idx: number) => {
+    const url = galleryImages[idx]
+    if (!url) return
+    const newUrl = await rotateImageFile(url, 90)
+    if (newUrl) {
+      setGalleryImages(prev => {
+        const next = [...prev]
+        next[idx] = newUrl
+        return next
+      })
+      // 同步清除该 url 的 rotation 状态（避免脏数据）
+      setGalleryRotations(prev => {
+        const { [url]: _, ...rest } = prev
+        return rest
+      })
+    }
   }
 
   const uploadFile = async (file: File): Promise<string | null> => {
@@ -821,13 +879,14 @@ export default function AdminDrama() {
               <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg z-20 overflow-hidden">
                 {dupResults.map(d => (
                   <button key={d.id} type="button" onClick={() => {
-                    setForm(prev => ({ ...prev, title: d.title, originalTitle: d.originalTitle || '', region: d.region || prev.region }))
+                    window.location.hash = d.id
+                    handleEdit(d)
                     setDupResults([])
                   }}
                     className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--bg-secondary)] transition-colors border-b border-[var(--border)] last:border-b-0 text-left">
                     <span className="text-[var(--brand)] font-medium shrink-0">{d.title}</span>
                     {d.originalTitle && <span className="text-[var(--text-muted)] text-xs truncate">{d.originalTitle}</span>}
-                    <span className="text-xs text-[var(--text-muted)] ml-auto shrink-0">填充 ↑</span>
+                    <span className="text-xs text-orange-500 ml-auto shrink-0">跳转编辑 →</span>
                   </button>
                 ))}
               </div>
@@ -946,10 +1005,10 @@ export default function AdminDrama() {
                     </div>
                   </div>
                   <p className="text-[10px] text-[var(--text-muted)] mt-1 text-center">{form.imagePosition || 'center'}</p>
-                  <button type="button" onClick={() => setCoverRotation(r => (r + 90) % 360)}
+                  <button type="button" onClick={handleRotateCover}
                     className="mt-1 w-full px-2 py-1 rounded-lg border border-[var(--border)] text-[10px] text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-secondary)] transition-all flex items-center justify-center gap-1">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1 4v6h6M23 4v6h-6M23 20v-6h-6M1 20v-6h6M3.5 16a8.5 8.5 0 1114.2-5.7" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12a8 8 0 11-5.3-7.5" /></svg>
-                    旋转 {coverRotation}°
+                    旋转 90°
                   </button>
                 </div>
                 <div>
@@ -1039,7 +1098,7 @@ export default function AdminDrama() {
                           title="设为封面">
                           ★ 设为封面
                         </button>
-                        <button type="button" onClick={() => setGalleryRotations(prev => ({ ...prev, [url]: ((prev[url] || 0) + 90) % 360 }))}
+                        <button type="button" onClick={() => handleRotateGallery(idx)}
                           className="px-2.5 py-1 rounded-md bg-white/90 text-xs font-medium text-gray-800 hover:bg-blue-400 hover:text-white transition-colors shadow"
                           title="旋转90度">
                           ↻ 旋转
@@ -1172,7 +1231,7 @@ export default function AdminDrama() {
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">总集数</label>
                 <input type="number" min={1} value={form.totalEpisodes || ''} placeholder="例如 24"
-                  onChange={e => { const v = parseInt(e.target.value) || 0; setForm({ ...form, totalEpisodes: v, currentEpisode: v }) }}
+                  onChange={e => { const v = parseInt(e.target.value) || 0; setForm({ ...form, totalEpisodes: v }) }}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]" />
               </div>
             </div>
@@ -1357,10 +1416,7 @@ export default function AdminDrama() {
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">总集数</label>
               <input type="number" value={form.totalEpisodes} onChange={e => {
                 const total = parseInt(e.target.value) || 0
-                const current = form.currentEpisode || 0
-                const completed = form.isCompleted
-                // 已完结 → 当前集数自动等于总集数；当前集数 >= 总集数 → 自动完结
-                setForm({ ...form, totalEpisodes: total, ...(completed && total > 0 ? { currentEpisode: total } : total > 0 && current >= total ? { isCompleted: true } : {}) })
+                setForm({ ...form, totalEpisodes: total })
               }}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]" />
             </div>
@@ -1560,7 +1616,7 @@ export default function AdminDrama() {
             {filtered.map((d, idx) => (
               <tr key={d.id} className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--bg-secondary)] transition-colors">
                 <td className="text-center px-2 py-3 text-sm text-[var(--text-muted)] tabular-nums">{filtered.length - idx}</td>
-                <td className="px-4 py-3 text-sm text-[var(--text-primary)] font-medium">{d.title}</td>
+                <td className="px-4 py-3 text-sm text-[var(--text-primary)] font-medium">{d.title || d.originalTitle}</td>
                 <td className="px-4 py-3 text-sm">
                   <div className="flex gap-1 flex-wrap">
                     {(d.region || '').split(',').filter(Boolean).map(r => (

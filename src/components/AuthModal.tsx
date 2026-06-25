@@ -22,6 +22,8 @@ export default function AuthModal({ show, initialPage = 'login', onClose }: Prop
   const [regPass, setRegPass] = useState('')
   const [regPass2, setRegPass2] = useState('')
   const [regInvite, setRegInvite] = useState('')
+  const [regGender, setRegGender] = useState('')
+  const [regBirthday, setRegBirthday] = useState('')
   const [regAgree, setRegAgree] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState('')
   const [avatarUploading, setAvatarUploading] = useState(false)
@@ -114,6 +116,8 @@ export default function AuthModal({ show, initialPage = 'login', onClose }: Prop
     const r = await register({
       username: regUser.trim(), email: regEmail.trim(), code: regCode.trim(),
       password: regPass, inviteCode: regInvite.trim(), avatar: avatarUrl || undefined,
+      gender: regGender || undefined,
+      birthday: regBirthday || undefined,
     })
     setSubmitting(false)
     if (r.ok) { onClose() } else { setError(r.error || '注册失败') }
@@ -195,6 +199,10 @@ export default function AuthModal({ show, initialPage = 'login', onClose }: Prop
                 <input className={inputClass} placeholder="16字内，汉字/数字/英文/符号" value={regUser} onChange={e => setRegUser(e.target.value)} maxLength={16} />
               </div>
               <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">* 邀请码</label>
+                <input className={inputClass} placeholder="内测用户请联系站长获取" value={regInvite} onChange={e => setRegInvite(e.target.value)} />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">* 邮箱</label>
                 <div className="flex gap-2">
                   <input type="text" className={inputClass} placeholder="请输入邮箱" value={regEmail} onChange={e => setRegEmail(e.target.value)} />
@@ -220,7 +228,20 @@ export default function AuthModal({ show, initialPage = 'login', onClose }: Prop
                 {capsOn.has("reg2") && <p className="mt-1 text-xs text-orange-500 flex items-center gap-1"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>大写锁定已打开</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">头像（可选）</label>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">性别（选填）</label>
+                <select className={inputClass} value={regGender} onChange={e => setRegGender(e.target.value)}>
+                  <option value="">保密</option>
+                  <option value="male">男</option>
+                  <option value="female">女</option>
+                  <option value="other">其他</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">生日（选填）</label>
+                <input type="date" className={inputClass} value={regBirthday} onChange={e => setRegBirthday(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">头像（选填）</label>
                 <div className="flex items-center gap-3">
                   <label className={`w-14 h-14 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer transition-colors shrink-0 ${
                     avatarUrl ? 'border-[var(--brand)]' : 'border-[var(--border)] hover:border-[var(--brand)]'
@@ -236,10 +257,6 @@ export default function AuthModal({ show, initialPage = 'login', onClose }: Prop
                     {avatarUploading ? '上传中...' : avatarUrl ? '点击更换头像' : '点击上传头像'}
                   </span>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">* 邀请码</label>
-                <input className={inputClass} placeholder="内测用户请联系站长获取" value={regInvite} onChange={e => setRegInvite(e.target.value)} />
               </div>
               <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer select-none">
                 <input type="checkbox" checked={regAgree} onChange={e => setRegAgree(e.target.checked)} className="w-4 h-4 accent-[var(--brand)]" />

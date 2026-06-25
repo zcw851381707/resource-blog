@@ -2,11 +2,12 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { isNewlyAiredActive, isRecentlyCompleted } from '@/lib/drama-schedule'
+import { isNewlyAiredActive, isRecentlyCompleted, isUpcomingActive } from '@/lib/drama-schedule'
 
 interface DramaCardProps {
   id: string
   title: string
+  originalTitle?: string | null
   slug: string
   coverImage?: string | null
   region?: string | null
@@ -69,8 +70,9 @@ export default function DramaCard({ drama }: { drama: DramaCardProps }) {
     }
   }
 
+  const isUpcoming = isUpcomingActive(drama)
   // 首播日当天不再显示「预计上线」，改为显示第 1 集（已脱离即将上线状态的才算首播）
-  const isPremiered = drama.expectedDate && !drama.isUpcoming && (() => {
+  const isPremiered = drama.expectedDate && !isUpcoming && (() => {
     const d = new Date(drama.expectedDate)
     d.setHours(0, 0, 0, 0)
     const now = new Date()
@@ -92,7 +94,7 @@ export default function DramaCard({ drama }: { drama: DramaCardProps }) {
   })()
   // 首播了但没有集数数据时才显示第1集；有真实数据就显示真实数据
   const noEpisodeData = (drama.manualEpisode ?? drama.currentEpisode) == null
-  const epLabel = isPremiered && !drama.isCompleted && noEpisodeData ? '第1集' : getEpisodeLabel(drama)
+  const epLabel = isUpcoming ? null : (isPremiered && !drama.isCompleted && noEpisodeData ? '第1集' : getEpisodeLabel(drama))
   const upcomingLabelData = isPremiered ? null : getUpcomingLabel(drama)
   const showNewlyAired = isNewlyAiredActive(drama) && (
     !drama.isCompleted ||
@@ -125,13 +127,13 @@ export default function DramaCard({ drama }: { drama: DramaCardProps }) {
           {showNewlyAired && (
             <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-green-500/90 text-white">新播</span>
           )}
-          {drama.isUpcoming && upcomingLabelData && (
+          {isUpcoming && upcomingLabelData && (
             <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-orange-500/90 text-white">{upcomingLabelData.text}{upcomingLabelData.suffix}</span>
           )}
-          {isPremiereDay && !showNewlyAired && !drama.isUpcoming && (
+          {isPremiereDay && !showNewlyAired && !isUpcoming && (
             <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-pink-500/90 text-white">首播</span>
           )}
-          {(drama.isOnSchedule || isNewlyAiredActive(drama)) && !drama.isCompleted && !drama.isUpcoming && (
+          {(drama.isOnSchedule || isNewlyAiredActive(drama)) && !drama.isCompleted && !isUpcoming && (
             <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-500/90 text-white">追剧中</span>
           )}
         </div>
@@ -144,7 +146,7 @@ export default function DramaCard({ drama }: { drama: DramaCardProps }) {
         )}
       </div>
       <p className="text-sm font-medium text-[var(--text-primary)] mt-1.5 line-clamp-1 group-hover:text-[var(--brand)] transition-colors min-h-[20px]">
-        {drama.title}{(drama.seriesOrder ?? 0) > 0 && ` 第${drama.seriesOrder}季`}
+        {drama.title || drama.originalTitle}{(drama.seriesOrder ?? 0) > 0 && ` 第${drama.seriesOrder}季`}
       </p>
       <p className="text-xs text-[var(--text-muted)] mt-0.5 min-h-[16px] group-hover:text-[var(--brand)] transition-colors">
         {drama.airTime && drama.isOnSchedule ? (

@@ -10,7 +10,7 @@ import ScrollReveal from '@/components/ScrollReveal'
 import FullRowGrid from '@/components/FullRowGrid'
 import HorizontalSlider from '@/components/HorizontalSlider'
 import Link from 'next/link'
-import { buildWeeklySchedule, hydrateDramaDisplayFields, isNewlyAiredActive } from '@/lib/drama-schedule'
+import { buildWeeklySchedule, hydrateDramaDisplayFields, isNewlyAiredActive, isUpcomingActive } from '@/lib/drama-schedule'
 
 const regions = [
   { key: '中国', label: '中国', includes: ['中国', '中国台湾', '中国香港', '中国澳门'] },
@@ -53,9 +53,10 @@ export default async function Home() {
     }),
   ])
 
-  // 即将上线排序：日 > 月 > 年 > 敬请期待，同精度内按 expectedDate → airTime
+  // 即将上线：只保留日期尚未到达的剧
+  const activeUpcomingDramas = upcomingDramas.filter(d => isUpcomingActive(d))
   const precisionOrder: Record<string, number> = { day: 0, month: 1, year: 2, tbd: 3 }
-  upcomingDramas.sort((a, b) => {
+  activeUpcomingDramas.sort((a, b) => {
     const pa = precisionOrder[a.expectedPrecision || 'day'] ?? 0
     const pb = precisionOrder[b.expectedPrecision || 'day'] ?? 0
     if (pa !== pb) return pa - pb
@@ -169,11 +170,11 @@ export default async function Home() {
       )}
 
       {/* 即将上线 */}
-      {upcomingDramas.length > 0 && (
+      {activeUpcomingDramas.length > 0 && (
         <ScrollReveal delay={100}>
           <section>
             <h2 className="text-xl font-extrabold text-[var(--text-primary)] mb-3 text-center">即将上线</h2>
-            <HorizontalSlider timeline={upcomingDramas.map(d => {
+            <HorizontalSlider timeline={activeUpcomingDramas.map(d => {
               if (!d.expectedDate) return null
               const date = new Date(d.expectedDate)
               const precision = d.expectedPrecision || 'day'
@@ -181,7 +182,7 @@ export default async function Home() {
               if (precision === 'month') return `${date.getMonth() + 1}月`
               return `${date.getMonth() + 1}月${date.getDate()}日`
             })}>
-              {upcomingDramas.map(d => (
+              {activeUpcomingDramas.map(d => (
                 <DramaCard key={d.id} drama={d} />
               ))}
             </HorizontalSlider>

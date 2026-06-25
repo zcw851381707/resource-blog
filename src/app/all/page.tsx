@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import DramaCard from '@/components/DramaCard'
 import DramaGrid from '@/components/DramaGrid'
+import { isUpcomingActive } from '@/lib/drama-schedule'
 
 interface Drama {
   id: string
@@ -65,7 +66,7 @@ function AllPageContent() {
       if (!dramaRegions.some(r => includes.includes(r))) return false
     }
     if (selectedTag === 'new' && !d.isNewlyAired) return false
-    if (selectedTag === 'upcoming' && !d.isUpcoming) return false
+    if (selectedTag === 'upcoming' && !isUpcomingActive(d)) return false
     if (selectedTag === 'schedule' && !d.isOnSchedule) return false
     if (selectedTag === 'completed' && !d.isCompleted) return false
     return true

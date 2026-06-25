@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
+import { hydrateDramaDisplayFields } from '@/lib/drama-schedule'
 import Image from 'next/image'
 import Link from 'next/link'
 import ShareModalClient from './ShareModalClient'
@@ -34,7 +35,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
   }
 
   // 解析关联剧集并获取数据
-  let relatedDramas: Array<{ id: string; title: string; slug: string; coverImage: string | null; isCompleted: boolean; isNewlyAired: boolean; totalEpisodes: number | null }> = []
+  let relatedDramas: Array<{ id: string; title: string; originalTitle?: string | null; slug: string; coverImage: string | null; isCompleted: boolean; isNewlyAired: boolean; totalEpisodes: number | null }> = []
   if (article.dramaTitle) {
     try {
       const refs = JSON.parse(article.dramaTitle) as { slug: string; title: string }[]
@@ -43,6 +44,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
         where: { slug: { in: slugs } },
         select: { id: true, title: true, slug: true, coverImage: true, isCompleted: true, isNewlyAired: true, totalEpisodes: true },
       })
+      await hydrateDramaDisplayFields(relatedDramas as Array<{ id: string } & Record<string, unknown>>)
     } catch { /* ignore */ }
   }
 
@@ -138,7 +140,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
                   )}
                 </div>
                 <div className="p-2.5">
-                  <p className="text-sm font-medium text-[var(--text-primary)] line-clamp-1 group-hover:text-[var(--brand)] transition-colors">{d.title}</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)] line-clamp-1 group-hover:text-[var(--brand)] transition-colors">{d.title || d.originalTitle}</p>
                   <p className="text-xs text-[var(--text-muted)] mt-0.5">
                     {d.totalEpisodes ? `共${d.totalEpisodes}集` : ''}
                   </p>

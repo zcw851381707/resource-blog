@@ -20,7 +20,7 @@ export default function AgreementPage() {
         <section>
           <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">二、账号注册与管理</h2>
           <ol className="list-decimal pl-6 space-y-2">
-            <li><strong>注册资格</strong>：您承诺年满 14 周岁，具有完全民事行为能力。</li>
+            <li><strong>注册资格</strong>：您承诺年满 18 周岁，具有完全民事行为能力。</li>
             <li><strong>真实信息</strong>：注册时需提供有效的邮箱地址用于验证和登录。请确保您提供的邮箱归属您本人。</li>
             <li><strong>账号安全</strong>：您对您的账号和密码负有保管义务，不得将账号出借、转让或授权他人使用。因密码泄露导致的一切后果由您自行承担。</li>
             <li><strong>一人一号</strong>：每位用户只允许注册一个账号。不得通过虚假邮箱、临时邮箱等方式注册多个账号。</li>

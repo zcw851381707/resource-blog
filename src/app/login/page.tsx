@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
+import AuthModal from '@/components/AuthModal'
 
 const BUBBLES = [
   { size: 95, left: 18, duration: 18, delay: 0, anim: 'floatBubble' },
@@ -32,6 +33,7 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
+  const [authPage, setAuthPage] = useState<'login' | 'register' | null>(null)
 
   useEffect(() => {
     if (user) window.location.href = redirect
@@ -53,6 +55,9 @@ function LoginForm() {
 
   return (
     <div className="fixed inset-0 overflow-hidden flex flex-col items-center justify-center px-4 gap-6 bg-gradient-to-b from-[#FFF5F5] to-[#FFEAEA]">
+      {/* 两个背景大球 */}
+      <div className="pointer-events-none absolute -top-[100px] -left-[100px] w-[320px] h-[320px] rounded-full" style={{ background: 'rgba(232,160,164,0.1)' }} />
+      <div className="pointer-events-none absolute -bottom-[150px] -right-[150px] w-[380px] h-[380px] rounded-full" style={{ background: 'rgba(232,160,164,0.08)' }} />
       {BUBBLES.map((b, i) => (
         <div key={i} className="pointer-events-none absolute" style={{ width: b.size, height: b.size, left: `${b.left}%`, borderRadius: '50%', animation: `${b.anim} ${b.duration}s linear ${b.delay}s infinite`, background: 'radial-gradient(circle at 28% 25%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.4) 18%, rgba(255,255,255,0.1) 38%, rgba(255,255,255,0.02) 65%, transparent 80%), radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15) 0%, transparent 70%)', boxShadow: 'inset 2px 3px 8px rgba(255,255,255,0.9), inset -2px -3px 6px rgba(232,160,164,0.18), inset 0 0 18px rgba(255,255,255,0.4), 0 6px 24px rgba(232,160,164,0.12), 0 0 0 1px rgba(255,255,255,0.5)', zIndex: 0 }} />
       ))}
@@ -76,10 +81,31 @@ function LoginForm() {
             <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[var(--text-muted)]"><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
           </div>
         </div>
-        <button type="submit" disabled={submitting} className="w-full h-11 rounded-full bg-[var(--brand)] text-white font-semibold text-sm tracking-[4px] hover:opacity-90 transition-opacity shadow-lg shadow-[var(--brand)]/25 disabled:opacity-50">{submitting ? '登录中...' : '登 录'}</button>
+        <div className="flex flex-col gap-3">
+          <button type="submit" disabled={submitting} className="w-full h-11 rounded-full bg-[var(--brand)] text-white font-semibold text-sm tracking-[4px] hover:opacity-90 transition-opacity shadow-lg shadow-[var(--brand)]/25 disabled:opacity-50">{submitting ? '登录中...' : '登 录'}</button>
+          <button type="button" onClick={() => setAuthPage('register')} className="w-full h-11 rounded-full border-2 border-[var(--brand)] bg-transparent text-[var(--brand)] font-semibold text-sm tracking-[4px] hover:bg-[var(--brand-pale)] transition-colors">注 册</button>
+        </div>
       </form>
 
-      <p className="relative z-10 text-xs text-[var(--text-muted)] mt-4">输入账号密码即可访问</p>
+      <p className="relative z-10 text-xs text-[var(--text-muted)] mt-4">当前是内测阶段 · 注册需要邀请码</p>
+      <AuthModal show={!!authPage} initialPage={authPage || 'login'} onClose={() => setAuthPage(null)} />
+
+      <style jsx global>{`
+        @keyframes floatBubble {
+          0%   { transform: translate(0, 100vh) scale(0.5); opacity: 0; }
+          8%   { opacity: 1; }
+          50%  { transform: translate(60px, 50vh) scale(1); }
+          92%  { opacity: 1; }
+          100% { transform: translate(-50px, -100px) scale(0.7); opacity: 0; }
+        }
+        @keyframes floatBubbleAlt {
+          0%   { transform: translate(0, 100vh) scale(0.4); opacity: 0; }
+          8%   { opacity: 0.95; }
+          50%  { transform: translate(-80px, 50vh) scale(0.95); }
+          92%  { opacity: 0.95; }
+          100% { transform: translate(60px, -100px) scale(0.6); opacity: 0; }
+        }
+      `}</style>
     </div>
   )
 }

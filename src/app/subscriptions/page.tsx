@@ -6,7 +6,7 @@ import Link from 'next/link'
 export default function SubscriptionsPage() {
   const [items, setItems] = useState<Array<{ id: string; dramaId: string; createdAt: string }>>([])
   const [dramas, setDramas] = useState<Record<string, {
-    title: string; slug: string; coverImage?: string | null; imagePosition?: string | null;
+    title: string; originalTitle?: string | null; slug: string; coverImage?: string | null; imagePosition?: string | null;
     expectedDate?: string | null; expectedPrecision?: string | null;
   }>>({})
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -82,7 +82,7 @@ export default function SubscriptionsPage() {
                 </Link>
                 <div className="flex-1 min-w-0">
                   <Link href={`/drama/${d.slug}`} className="block text-sm font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--brand)] transition-colors">
-                    {d.title}
+                    {d.title || d.originalTitle}
                   </Link>
                   <p className="text-[11px] text-[var(--warning)] mt-0.5 flex items-center gap-1">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">

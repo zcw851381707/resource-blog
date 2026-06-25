@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import DramaDetailClient from './DramaDetailClient'
+import { hydrateDramaDisplayFields } from '@/lib/drama-schedule'
 
 export default async function DramaDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -53,6 +54,8 @@ export default async function DramaDetailPage({ params }: { params: Promise<{ sl
     prisma.siteSettings.findFirst(),
   ])
 
+  await hydrateDramaDisplayFields(related)
+
   const links = drama.downloadLinks || []
 
   return (
@@ -76,6 +79,7 @@ export default async function DramaDetailPage({ params }: { params: Promise<{ sl
         currentEpisode: drama.currentEpisode,
         manualEpisode: drama.manualEpisode,
         airDays: drama.airDays,
+        episodesPerDay: drama.episodesPerDay,
         airTime: drama.airTime,
         description: drama.description,
         videoUrl: videoUrl,

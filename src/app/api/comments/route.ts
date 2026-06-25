@@ -4,46 +4,66 @@ import { prisma } from '@/lib/prisma'
 import { moderateComment } from '@/lib/moderation'
 
 // GET /api/comments?dramaId=xxx&page=1&limit=10
+// 返回结构：置顶评论（pinned 单独一组在最前）+ 顶级评论（分页）+ 每条顶级评论的回复
 export async function GET(request: NextRequest) {
   const dramaId = request.nextUrl.searchParams.get('dramaId')
   const page = Math.max(1, parseInt(request.nextUrl.searchParams.get('page') || '1'))
   const limit = Math.min(50, Math.max(1, parseInt(request.nextUrl.searchParams.get('limit') || '10')))
+  const sort = request.nextUrl.searchParams.get('sort') || 'new' // new | hot
   if (!dramaId) return NextResponse.json({ error: '缺少 dramaId' }, { status: 400 })
 
   const session = await getSession()
 
-  // 公开显示只展示审核通过的评论（flag=clean）
-  // 管理员自己写的评论也可见（包括可疑状态的）
-  const whereBase: Record<string, unknown> = { dramaId, isDeleted: false }
+  const baseWhere: Record<string, unknown> = { dramaId, isDeleted: false }
   if (session?.role === 'admin') {
-    whereBase.OR = [
-      { flag: 'clean' },
-      { userId: session.userId },
-    ]
+    baseWhere.OR = [{ flag: 'clean' }, { userId: session.userId }]
   } else {
-    whereBase.flag = 'clean'
+    baseWhere.flag = 'clean'
   }
+  // 顶级评论 = parentId 为 null
+  const whereTopLevel = { ...baseWhere, parentId: null }
 
-  const [items, total] = await Promise.all([
+  // 排序
+  const orderBy: any[] = sort === 'hot'
+    ? [{ pinned: 'desc' }, { likeCount: 'desc' }, { createdAt: 'desc' }]
+    : [{ pinned: 'desc' }, { createdAt: 'desc' }]
+
+  // 1. 查询所有顶级评论（含置顶）
+  const [topItems, total] = await Promise.all([
     prisma.comment.findMany({
-      where: whereBase as any,
-      orderBy: { createdAt: 'desc' },
+      where: whereTopLevel as any,
+      orderBy,
       skip: (page - 1) * limit,
       take: limit,
       select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        userId: true,
-        dramaId: true,
+        id: true, content: true, createdAt: true, userId: true, dramaId: true,
+        likeCount: true, replyCount: true, pinned: true, parentId: true, replyToUser: true,
       },
     }),
-    prisma.comment.count({ where: whereBase as any }),
+    prisma.comment.count({ where: whereTopLevel as any }),
   ])
 
-  // 并发查用户名 + 剧名
-  const userIds = [...new Set(items.map(i => i.userId))]
-  const dramaIds = [...new Set(items.map(i => i.dramaId))]
+  // 2. 查询所有回复（这些顶级评论的）
+  const topIds = topItems.map(c => c.id)
+  const replyItems = topIds.length > 0 ? await prisma.comment.findMany({
+    where: {
+      dramaId,
+      parentId: { in: topIds },
+      isDeleted: false,
+      ...(session?.role === 'admin' ? { OR: [{ flag: 'clean' }, { userId: session.userId }] } : { flag: 'clean' }),
+    },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true, content: true, createdAt: true, userId: true, dramaId: true,
+      likeCount: true, replyCount: true, pinned: true, parentId: true, replyToUser: true,
+    },
+  }) : []
+
+  // 3. 查所有用户信息
+  const allItems = [...topItems, ...replyItems]
+  const userIds = [...new Set(allItems.map(i => i.userId))]
+  const dramaIds = [...new Set(allItems.map(i => i.dramaId))]
+
   const [users, dramas] = await Promise.all([
     prisma.user.findMany({
       where: { id: { in: userIds } },
@@ -57,7 +77,18 @@ export async function GET(request: NextRequest) {
   const userMap = Object.fromEntries(users.map(u => [u.id, { username: u.username, avatar: u.avatar, role: u.role }]))
   const dramaMap = Object.fromEntries(dramas.map(d => [d.id, { title: d.title, slug: d.slug }]))
 
-  const enriched = items.map(item => ({
+  // 4. 当前用户已点赞的评论 ID
+  const allCommentIds = allItems.map(i => i.id)
+  const likedSet = session && allCommentIds.length > 0
+    ? new Set(
+        (await prisma.commentLike.findMany({
+          where: { userId: session.userId, commentId: { in: allCommentIds } },
+          select: { commentId: true },
+        })).map(l => l.commentId)
+      )
+    : new Set<string>()
+
+  const enrich = (item: typeof topItems[number] | typeof replyItems[number]) => ({
     id: item.id,
     content: item.content,
     createdAt: item.createdAt.toISOString(),
@@ -66,17 +97,37 @@ export async function GET(request: NextRequest) {
     isAdmin: userMap[item.userId]?.role === 'admin',
     dramaTitle: dramaMap[item.dramaId]?.title || '',
     dramaSlug: dramaMap[item.dramaId]?.slug || '',
-  }))
+    likeCount: item.likeCount,
+    replyCount: item.replyCount,
+    pinned: item.pinned,
+    liked: likedSet.has(item.id),
+    parentId: item.parentId,
+    replyToUser: item.replyToUser,
+  })
 
-  return NextResponse.json({ items: enriched, total, page, totalPages: Math.ceil(total / limit) })
+  // 5. 组装：每条顶级评论带 replies
+  const replyMap = new Map<string, any[]>()
+  for (const r of replyItems) {
+    const arr = replyMap.get(r.parentId!) || []
+    arr.push(enrich(r))
+    replyMap.set(r.parentId!, arr)
+  }
+  const enrichedTops = topItems.map(item => ({ ...enrich(item), replies: replyMap.get(item.id) || [] }))
+
+  return NextResponse.json({
+    items: enrichedTops,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  })
 }
 
-// POST /api/comments → { dramaId, content }
+// POST /api/comments → { dramaId, content, parentId?, replyToUser? }
 export async function POST(request: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: '请先登录' }, { status: 401 })
 
-  const { dramaId, content } = await request.json()
+  const { dramaId, content, parentId, replyToUser } = await request.json()
   if (!dramaId || !content || content.trim().length === 0) {
     return NextResponse.json({ error: '评论内容不能为空' }, { status: 400 })
   }
@@ -89,7 +140,6 @@ export async function POST(request: NextRequest) {
     where: { id: session.userId },
     select: { mutedUntil: true, role: true },
   })
-  // 管理员不受禁言限制
   if (user?.role !== 'admin' && user?.mutedUntil && new Date(user.mutedUntil) > new Date()) {
     const until = new Date(user.mutedUntil)
     const days = Math.ceil((until.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
@@ -104,12 +154,22 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  // 检查禁言词条（数据库级）
+  // 验证 parentId 是否存在
+  if (parentId) {
+    const parent = await prisma.comment.findUnique({
+      where: { id: parentId },
+      select: { id: true, isDeleted: true },
+    })
+    if (!parent || parent.isDeleted) {
+      return NextResponse.json({ error: '回复的评论不存在' }, { status: 400 })
+    }
+  }
+
+  // 检查禁言词条
   const bannedWords = await prisma.bannedWord.findMany({ select: { word: true } })
   const lowerContent = content.trim().toLowerCase()
   const matchedWord = bannedWords.find(bw => lowerContent.includes(bw.word.toLowerCase()))
   if (matchedWord) {
-    // 匹配到禁用词 → 直接软删除
     const comment = await prisma.comment.create({
       data: {
         userId: session.userId,
@@ -117,6 +177,8 @@ export async function POST(request: NextRequest) {
         content: content.trim(),
         flag: 'toxic',
         isDeleted: true,
+        parentId: parentId || null,
+        replyToUser: replyToUser || null,
       },
     })
     return NextResponse.json({
@@ -125,11 +187,11 @@ export async function POST(request: NextRequest) {
       createdAt: comment.createdAt.toISOString(),
       flag: 'toxic',
       moderated: true,
-      message: `评论因含禁用词“${matchedWord.word}”已被系统清除`,
+      message: `评论因含禁用词"${matchedWord.word}"已被系统清除`,
     })
   }
 
-  // 内容审核（关键词）
+  // 内容审核
   const { flag, isDeleted } = moderateComment(content.trim())
 
   const comment = await prisma.comment.create({
@@ -139,8 +201,18 @@ export async function POST(request: NextRequest) {
       content: content.trim(),
       flag,
       isDeleted,
+      parentId: parentId || null,
+      replyToUser: replyToUser || null,
     },
   })
+
+  // 更新父评论的 replyCount
+  if (parentId) {
+    await prisma.comment.update({
+      where: { id: parentId },
+      data: { replyCount: { increment: 1 } },
+    })
+  }
 
   return NextResponse.json({
     ok: true,

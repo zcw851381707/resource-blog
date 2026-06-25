@@ -4,6 +4,7 @@ import Link from 'next/link'
 interface Drama {
   id: string
   title: string
+  originalTitle?: string | null
   slug: string
   coverImage?: string | null
   airTime?: string | null
@@ -44,7 +45,7 @@ export default function WeeklySchedule({ schedule }: WeeklyScheduleProps) {
                       ) : null}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{drama.title}</p>
+                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{drama.title || drama.originalTitle}</p>
                       {drama.airTime && (
                         <p className="text-xs text-gray-400">{drama.airTime}</p>
                       )}

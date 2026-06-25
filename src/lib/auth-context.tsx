@@ -20,7 +20,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
   register: (data: {
     username: string; email: string; code: string; password: string
-    inviteCode: string; avatar?: string
+    inviteCode: string; avatar?: string; gender?: string; birthday?: string
   }) => Promise<{ ok: boolean; error?: string }>
   sendCode: (email: string, purpose: 'register' | 'reset') => Promise<{ ok: boolean; error?: string }>
   resetPassword: (email: string, code: string, newPassword: string) => Promise<{ ok: boolean; error?: string }>

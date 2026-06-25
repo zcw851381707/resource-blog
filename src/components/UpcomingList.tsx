@@ -7,6 +7,7 @@ import Link from 'next/link'
 interface Drama {
   id: string
   title: string
+  originalTitle?: string | null
   slug: string
   coverImage?: string | null
   expectedDate?: Date | string | null
@@ -241,7 +242,7 @@ export default function UpcomingList({ dramas }: UpcomingListProps) {
                   )}
                 </div>
                 <div className="p-2.5">
-                  <p className="text-sm font-medium text-[var(--text-primary)] line-clamp-1 group-hover:text-[var(--brand)] transition-colors">{drama.title}</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)] line-clamp-1 group-hover:text-[var(--brand)] transition-colors">{drama.title || drama.originalTitle}</p>
                   {drama.expectedDate && (
                     <p className="text-xs text-[var(--text-muted)] mt-0.5 group-hover:text-[var(--brand)] transition-colors">
                       {new Date(drama.expectedDate).toLocaleDateString('zh-CN')}

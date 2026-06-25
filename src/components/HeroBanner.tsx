@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { isUpcomingActive } from '@/lib/drama-schedule'
 
 interface DramaInfo {
   id: string
@@ -40,6 +41,8 @@ interface BannerData {
   bannerLink?: string | null
   showButton?: boolean
   isPortrait?: boolean
+  isAd?: boolean
+  adLabel?: string | null
   portraitImages?: string | null
   dramaId?: string | null
   description?: string | null
@@ -83,18 +86,13 @@ const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '�
 // 解析存储的图片位置，新格式 "left% top% zoom%"，兼容旧格式 "x% y%"
 function parseImagePosition(pos: string | null | undefined): { left: number; top: number; zoom: number } {
   if (!pos || pos === 'center') return { left: -5, top: -5, zoom: 110 }
+  const p = (s: string, def: number) => { const n = parseFloat(s); return isNaN(n) ? def : n }
   const parts = pos.split(/\s+/)
   if (parts.length >= 3) {
-    // 新格式：直接 left, top, zoom
-    return {
-      left: parseFloat(parts[0]) || -5,
-      top: parseFloat(parts[1]) || -5,
-      zoom: parseFloat(parts[2]) || 110,
-    }
+    return { left: p(parts[0], -5), top: p(parts[1], -5), zoom: p(parts[2], 110) }
   }
-  // 旧格式兼容：x% y% → 转换为新格式
-  const x = parseFloat(parts[0]) || 50
-  const y = parseFloat(parts[1]) || 50
+  const x = p(parts[0], 50)
+  const y = p(parts[1], 50)
   const zoom = 110
   return {
     left: x * (100 - zoom) / 100,
@@ -298,7 +296,7 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
     const description = banner.description || drama?.description || null
     const title = banner.title || drama?.title || ''
     // 未播出 → 不显示集数
-    const notAiredYet = drama?.isUpcoming || (drama?.startDate ? new Date(drama.startDate as string) > new Date() : false)
+    const notAiredYet = drama ? isUpcomingActive(drama) || (drama.startDate ? new Date(drama.startDate as string) > new Date() : false) : false
     const rawEp = notAiredYet ? null : (drama ? (drama.manualEpisode ?? drama.currentEpisode) : null)
     // 首播集数优先：如果设置了 premiereEpisodes 且大于当前记录，使用首播集数
     const ep = !notAiredYet && drama?.premiereEpisodes && (!rawEp || drama.premiereEpisodes > (rawEp ?? 0))
@@ -317,7 +315,7 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
     if (drama?.isCompleted) tagBadges.push('已完结')
     else if (drama?.isOnSchedule) tagBadges.push('追剧中')
     if (drama?.isNewlyAired) tagBadges.push('新播')
-    if (drama?.isUpcoming && drama.expectedDate) {
+    if (drama && isUpcomingActive(drama) && drama.expectedDate) {
       const ed = new Date(drama.expectedDate as string)
       tagBadges.push(`${ed.getMonth() + 1}月${ed.getDate()}日上线`)
     }
@@ -715,6 +713,11 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
       >
         {mobileLayout}
         {desktopLayout}
+        {banner.isAd && (
+          <div className="absolute top-2 right-2 z-30 px-2 py-0.5 rounded text-[10px] font-semibold text-white bg-black/60 backdrop-blur-sm pointer-events-none">
+            {banner.adLabel?.trim() || '广告'}
+          </div>
+        )}
       </div>
     )
   }

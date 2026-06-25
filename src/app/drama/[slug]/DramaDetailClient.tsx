@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import DramaGrid from '@/components/DramaGrid'
 import ShareModal from '@/components/ShareModal'
-import { isNewlyAiredActive, isRecentlyCompleted } from '@/lib/drama-schedule'
+import { isNewlyAiredActive, isRecentlyCompleted, isUpcomingActive, calcCurrentEpisode } from '@/lib/drama-schedule'
 import { useAuth } from '@/lib/auth-context'
 
 interface DramaInfo {
@@ -37,6 +37,7 @@ interface DramaInfo {
   scheduleImage?: string | null
   startDate?: string | null
   premiereEpisodes?: number | null
+  episodesPerDay?: number | null
 }
 
 // 根据视频链接自动识别平台名称
@@ -57,6 +58,7 @@ interface LinkInfo {
 interface RelatedInfo {
   id: string
   title: string
+  originalTitle?: string | null
   slug: string
   coverImage?: string | null
   clickCount: number
@@ -95,12 +97,20 @@ function getEpisodeLabel(d: DramaInfo): string {
     if (d.totalEpisodes) return `全${d.totalEpisodes}集`
     return '已完结'
   }
-  // 手动设定的集数优先（0 视为未设置），否则用 currentEpisode
+  // 集数：手动指定优先（0 视为未设置），否则按首播日期 + 播出日 + 集数规则自动计算
   const hasManual = d.manualEpisode != null && d.manualEpisode > 0
-  let ep = hasManual ? d.manualEpisode : d.currentEpisode
+  let ep = hasManual ? d.manualEpisode : calcCurrentEpisode({
+    currentEpisode: d.currentEpisode,
+    manualEpisode: d.manualEpisode,
+    startDate: d.startDate,
+    premiereEpisodes: d.premiereEpisodes,
+    episodesPerDay: d.episodesPerDay,
+    airDays: d.airDays,
+    airTime: d.airTime,
+  })
   if (ep && d.totalEpisodes) return `更新至第${ep}集，共${d.totalEpisodes}集`
   if (ep) return `更新至第${ep}集`
-  if (d.totalEpisodes) return `全${d.totalEpisodes}集`
+  if (d.totalEpisodes) return `共${d.totalEpisodes}集`
   return ''
 }
 
@@ -119,6 +129,9 @@ export default function DramaDetailClient({
   const [copied, setCopied] = useState(false)
   const [reportedLinks, setReportedLinks] = useState<Set<string>>(new Set())
   const [expandSchedule, setExpandSchedule] = useState(false)
+  const [scheduleAnimating, setScheduleAnimating] = useState(false)
+  const scheduleImgRef = useRef<HTMLImageElement>(null)
+  const [scheduleImgHeight, setScheduleImgHeight] = useState<number | null>(null)
   const [expandEmail, setExpandEmail] = useState<string | null>(null)
   const [emailInput, setEmailInput] = useState('')
   const [emailError, setEmailError] = useState<string | null>(null)
@@ -198,11 +211,12 @@ export default function DramaDetailClient({
     setCaptchaLoading(false)
   }
   const epLabel = getEpisodeLabel(drama)
+  const showUpcoming = isUpcomingActive(drama)
   const videoPlatform = drama.videoUrl ? getVideoPlatform(drama.videoUrl) : null
   const videoButtonText = drama.videoLabel ? `在线观看${drama.videoLabel}` : '观看预告片'
 
   const copyText = [
-    `【${drama.title}】`,
+    `【${drama.title || drama.originalTitle}】`,
     ...links.map(l => {
       let line = `${l.platform}：${l.url}`
       if (l.extractCode) line += ` 提取码：${l.extractCode}`
@@ -455,7 +469,7 @@ export default function DramaDetailClient({
         {/* 中栏：信息 */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2 mb-1">
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">{drama.title}</h1>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">{drama.title || drama.originalTitle}</h1>
             <button
               type="button"
               onClick={() => setShowShare(true)}
@@ -468,7 +482,7 @@ export default function DramaDetailClient({
               分享
             </button>
           </div>
-          {drama.originalTitle && (
+          {drama.originalTitle && drama.title && (
             <p className="text-sm text-[var(--text-muted)] mb-3">{drama.originalTitle}</p>
           )}
 
@@ -511,13 +525,13 @@ export default function DramaDetailClient({
             {isRecentlyCompleted(drama) && (
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-500/90 text-white">已完结</span>
             )}
-            {(drama.isOnSchedule || isNewlyAiredActive(drama)) && !drama.isCompleted && !drama.isUpcoming && (
+            {(drama.isOnSchedule || isNewlyAiredActive(drama)) && !drama.isCompleted && !showUpcoming && (
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-500/90 text-white">追剧中</span>
             )}
             {isNewlyAiredActive(drama) && (
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-500/90 text-white">新播</span>
             )}
-            {drama.isUpcoming && getUpcomingLabel(drama.expectedDate, drama.expectedPrecision) && (
+            {showUpcoming && getUpcomingLabel(drama.expectedDate, drama.expectedPrecision) && (
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-orange-500/90 text-white">{getUpcomingLabel(drama.expectedDate, drama.expectedPrecision)}</span>
             )}
             {drama.tags && (
@@ -571,12 +585,18 @@ export default function DramaDetailClient({
           {/* 互动按钮组（追剧 / 收藏 / 预约） */}
           <InteractionBar
             dramaId={drama.id}
-            isUpcoming={drama.isUpcoming}
+            isUpcoming={showUpcoming}
             totalEpisodes={drama.totalEpisodes}
             currentEp={(() => {
-              const hasManual = drama.manualEpisode != null && drama.manualEpisode > 0
-              let ep = hasManual ? drama.manualEpisode : drama.currentEpisode
-              return ep || 0
+              return calcCurrentEpisode({
+                currentEpisode: drama.currentEpisode,
+                manualEpisode: drama.manualEpisode,
+                startDate: drama.startDate,
+                premiereEpisodes: drama.premiereEpisodes,
+                episodesPerDay: drama.episodesPerDay,
+                airDays: drama.airDays,
+                airTime: drama.airTime,
+              })
             })()}
           />
 
@@ -595,19 +615,59 @@ export default function DramaDetailClient({
 
           {/* 播出日历海报 */}
           {drama.scheduleImage && (
-            <div className="mt-5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">
-              <img
-                src={drama.scheduleImage}
-                alt={`${drama.title} 播出日历`}
-                className={`w-full cursor-pointer ${expandSchedule ? 'object-contain' : 'max-h-[180px] object-cover'}`}
+            <div className="mt-6 group">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-7 h-7 rounded-lg bg-[var(--brand-pale)] flex items-center justify-center text-[var(--brand)]">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </span>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">播出日历</h3>
+              </div>
+              <div
+                className={`relative bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-secondary)] rounded-2xl overflow-hidden transition-all hover:shadow-lg hover:shadow-[var(--brand)]/10`}
                 onClick={() => setExpandSchedule(!expandSchedule)}
-              />
-              {!expandSchedule && (
-                <p className="text-xs text-[var(--text-muted)] text-center py-1.5 cursor-pointer hover:text-[var(--brand)] transition-colors" onClick={() => setExpandSchedule(true)}>展开播出日历 ↓</p>
-              )}
-              {expandSchedule && (
-                <p className="text-xs text-[var(--text-muted)] text-center py-1.5 cursor-pointer hover:text-[var(--brand)] transition-colors" onClick={() => setExpandSchedule(false)}>收起 ↑</p>
-              )}
+              >
+                <div className={`overflow-hidden transition-[max-height] duration-500 ease-in-out`}
+                  style={{ maxHeight: expandSchedule ? (scheduleImgHeight || 9999) : 200 }}
+                  onTransitionEnd={() => setScheduleAnimating(false)}
+                >
+                  <img
+                    ref={scheduleImgRef}
+                    src={drama.scheduleImage}
+                    alt={`${drama.title} 播出日历`}
+                    className="w-full h-auto"
+                    onLoad={(e) => {
+                    const img = e.currentTarget
+                    const ratio = img.naturalWidth > 0 ? img.naturalHeight / img.naturalWidth : 1
+                    setScheduleImgHeight(Math.round(img.offsetWidth * ratio))
+                  }}
+                  />
+                </div>
+                {!expandSchedule && !scheduleAnimating && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+                )}
+                {!expandSchedule && !scheduleAnimating && (
+                  <button
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setScheduleAnimating(true); setExpandSchedule(true) }}
+                    className="absolute bottom-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/95 text-[var(--brand)] text-xs font-semibold shadow-md backdrop-blur-sm hover:bg-[var(--brand)] hover:text-white transition-all active:scale-95">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                    展开播出日历
+                  </button>
+                )}
+                {expandSchedule && !scheduleAnimating && (
+                  <button
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setScheduleAnimating(true); setExpandSchedule(false) }}
+                    className="absolute top-3 right-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-black/60 text-white text-xs font-medium backdrop-blur-sm hover:bg-black/80 transition-all active:scale-95">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                    </svg>
+                    收起
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -853,7 +913,7 @@ export default function DramaDetailClient({
                   )}
                 </div>
                 <p className="text-sm font-medium text-[var(--text-primary)] mt-1.5 line-clamp-1 group-hover:text-[var(--brand)] transition-colors">
-                  {d.title}
+                  {d.title || d.originalTitle}
                 </p>
               </Link>
             ))}
@@ -1277,9 +1337,25 @@ function RatingSection({ dramaId }: { dramaId: string }) {
 }
 
 // ============ 评论区组件 ============
+interface CommentItem {
+  id: string
+  content: string
+  createdAt: string
+  isMine: boolean
+  isAdmin: boolean
+  user: { username: string; avatar: string | null }
+  likeCount: number
+  replyCount: number
+  pinned: boolean
+  liked: boolean
+  parentId?: string | null
+  replyToUser?: string | null
+  replies?: CommentItem[]
+}
+
 function CommentSection({ dramaId }: { dramaId: string }) {
   const { user, isAdmin } = useAuth()
-  const [comments, setComments] = useState<Array<{ id: string; content: string; createdAt: string; isMine: boolean; isAdmin: boolean; user: { username: string; avatar: string | null } }>>([])
+  const [comments, setComments] = useState<CommentItem[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -1287,6 +1363,11 @@ function CommentSection({ dramaId }: { dramaId: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [moderationMsg, setModerationMsg] = useState('')
+  const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null)
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
+  const [showAllComments, setShowAllComments] = useState(false)
+  const COMMENTS_PER_PAGE_DISPLAY = 20  // 一页展示的评论数（>20折叠）
+  const REPLIES_PREVIEW = 1              // 每条评论默认展开的回复数
 
   const load = (p = page) => {
     fetch(`/api/comments?dramaId=${dramaId}&page=${p}&limit=10`)
@@ -1305,15 +1386,21 @@ function CommentSection({ dramaId }: { dramaId: string }) {
   const submit = async () => {
     if (!user || !input.trim() || submitting) return
     setSubmitting(true)
+    const body: Record<string, unknown> = { dramaId, content: input.trim() }
+    if (replyTo) {
+      body.parentId = replyTo.id
+      body.replyToUser = replyTo.username
+    }
     const res = await fetch('/api/comments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dramaId, content: input.trim() }),
+      body: JSON.stringify(body),
     })
     const data = await res.json()
     setSubmitting(false)
     if (data.ok) {
       setInput('')
+      setReplyTo(null)
       if (data.moderated) {
         setModerationMsg(data.message || '评论已提交审核')
         setTimeout(() => setModerationMsg(''), 5000)
@@ -1339,6 +1426,137 @@ function CommentSection({ dramaId }: { dramaId: string }) {
     }
   }
 
+  const toggleLike = async (commentId: string) => {
+    if (!user) return
+    // 乐观更新
+    setComments(prev => prev.map(c => {
+      if (c.id === commentId) {
+        return { ...c, liked: !c.liked, likeCount: c.likeCount + (c.liked ? -1 : 1) }
+      }
+      // 同时更新嵌套回复
+      if (c.replies) {
+        return { ...c, replies: c.replies.map(r => r.id === commentId ? { ...r, liked: !r.liked, likeCount: r.likeCount + (r.liked ? -1 : 1) } : r) }
+      }
+      return c
+    }))
+    try {
+      const res = await fetch(`/api/comments/${commentId}/like`, { method: 'POST' })
+      if (!res.ok) throw new Error()
+    } catch {
+      // 回滚
+      setComments(prev => prev.map(c => {
+        if (c.id === commentId) {
+          return { ...c, liked: !c.liked, likeCount: c.likeCount + (c.liked ? -1 : 1) }
+        }
+        if (c.replies) {
+          return { ...c, replies: c.replies.map(r => r.id === commentId ? { ...r, liked: !r.liked, likeCount: r.likeCount + (r.liked ? -1 : 1) } : r) }
+        }
+        return c
+      }))
+    }
+  }
+
+  const togglePin = async (commentId: string) => {
+    setComments(prev => prev.map(c => c.id === commentId ? { ...c, pinned: !c.pinned } : c))
+    try {
+      const res = await fetch(`/api/comments/${commentId}/pin`, { method: 'POST' })
+      if (!res.ok) throw new Error()
+    } catch {
+      setComments(prev => prev.map(c => c.id === commentId ? { ...c, pinned: !c.pinned } : c))
+    }
+  }
+
+  const renderComment = (c: CommentItem, isReply = false) => (
+    <div key={c.id} className={`flex gap-2.5 p-3 rounded-lg ${c.pinned ? 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200' : 'bg-[var(--bg-secondary)]'}`}>
+      <div className="relative w-8 h-8 rounded-full shrink-0 bg-[var(--brand-pale)] flex items-center justify-center text-[var(--brand)] text-xs font-bold">
+        {c.user.avatar ? (
+          <img src={c.user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+        ) : (
+          c.user.username.slice(0, 1)
+        )}
+        {c.isAdmin && (
+          <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#FFD700] flex items-center justify-center shadow-sm border-[1.5px] border-[var(--bg-secondary)]"
+            title="管理员">
+            <svg className="w-2 h-2" viewBox="0 0 24 24" fill="#B8860B">
+              <path d="M12 2L15.09 8.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/>
+            </svg>
+          </span>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        {/* 第一行：用户名 + 时间 + 我的 + 操作按钮 */}
+        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+          <span className="text-xs font-medium text-[var(--text-primary)]">{c.user.username}</span>
+          {c.pinned && (
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold" title="管理员精选置顶">
+              <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
+              精选
+            </span>
+          )}
+          <span className="text-[9px] text-[var(--text-muted)]">{timeAgoStr(c.createdAt)}</span>
+          {c.isMine && <span className="text-[9px] text-[var(--brand)] font-medium">我的</span>}
+
+          {/* 点赞按钮 */}
+          <button
+            onClick={() => toggleLike(c.id)}
+            disabled={!user}
+            title={c.liked ? '取消点赞' : '点赞'}
+            className={`ml-2 flex items-center gap-0.5 text-[11px] transition-colors px-1.5 py-0.5 rounded ${
+              c.liked ? 'text-[var(--brand)] bg-[var(--brand-bg)]' : 'text-[var(--text-muted)] hover:text-[var(--brand)] hover:bg-[var(--bg)]'
+            } disabled:cursor-not-allowed`}
+          >
+            <svg className={`w-3.5 h-3.5 ${c.liked ? 'scale-110' : ''}`} fill={c.liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+            </svg>
+            {c.likeCount > 0 && <span>{c.likeCount}</span>}
+          </button>
+
+          {/* 回复按钮（顶级评论才显示） */}
+          {!isReply && user && (
+            <button
+              onClick={() => setReplyTo({ id: c.id, username: c.user.username })}
+              title="回复"
+              className="flex items-center gap-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--brand)] hover:bg-[var(--bg)] px-1.5 py-0.5 rounded transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4"/>
+              </svg>
+              <span>回复</span>
+              {c.replyCount > 0 && <span>({c.replyCount})</span>}
+            </button>
+          )}
+
+          {/* 精选按钮（仅管理员） */}
+          {isAdmin && !isReply && (
+            <button
+              onClick={() => togglePin(c.id)}
+              title={c.pinned ? '已置顶，点击取消' : '精选置顶'}
+              className={`flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded transition-colors ${
+                c.pinned ? 'text-white bg-amber-500' : 'text-[var(--text-muted)] hover:text-amber-600 hover:bg-[var(--bg)]'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill={c.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/>
+              </svg>
+            </button>
+          )}
+
+          {/* 删除按钮（右对齐） */}
+          {(c.isMine || isAdmin) && (
+            <button
+              onClick={() => remove(c.id)}
+              disabled={deleting === c.id}
+              className="ml-auto text-[10px] text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
+            >
+              {deleting === c.id ? '删除中...' : isAdmin && !c.isMine ? '管理员删除' : '删除'}
+            </button>
+          )}
+        </div>
+        <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap break-words">{c.content}</p>
+      </div>
+    </div>
+  )
+
   return (
     <div className="mt-5">
       <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
@@ -1358,13 +1576,19 @@ function CommentSection({ dramaId }: { dramaId: string }) {
       {/* 输入框 */}
       {user ? (
         <div className="mb-4">
+          {replyTo && (
+            <div className="flex items-center gap-2 mb-1.5 px-3 py-1.5 rounded-t-lg bg-[var(--brand-bg)] border border-[var(--brand-pale)] border-b-0 text-xs">
+              <span className="text-[var(--text-secondary)]">回复 <span className="text-[var(--brand)] font-medium">@{replyTo.username}</span></span>
+              <button onClick={() => setReplyTo(null)} className="ml-auto text-[var(--text-muted)] hover:text-[var(--danger)]">✕</button>
+            </div>
+          )}
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
             maxLength={500}
-            placeholder="写下你对这部剧的短评..."
+            placeholder={replyTo ? `回复 @${replyTo.username}...` : '写下你对这部剧的短评...'}
             rows={2}
-            className="w-full text-sm px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] outline-none focus:border-[var(--brand)] resize-none"
+            className={`w-full text-sm px-3 py-2 border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] outline-none focus:border-[var(--brand)] resize-none ${replyTo ? 'rounded-b-lg' : 'rounded-lg'}`}
           />
           <div className="flex items-center justify-between mt-1.5">
             <span className="text-[10px] text-[var(--text-muted)]">{input.length}/500</span>
@@ -1373,7 +1597,7 @@ function CommentSection({ dramaId }: { dramaId: string }) {
               disabled={!input.trim() || submitting}
               className="px-4 py-1.5 rounded-full bg-[var(--brand)] text-white text-xs font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
-              {submitting ? '发表中...' : '发表'}
+              {submitting ? '发表中...' : (replyTo ? '回复' : '发表')}
             </button>
           </div>
         </div>
@@ -1388,43 +1612,65 @@ function CommentSection({ dramaId }: { dramaId: string }) {
         <p className="py-6 text-center text-xs text-[var(--text-muted)]">还没有评论，来写第一条吧</p>
       ) : (
         <div className="space-y-3">
-          {comments.map(c => (
-            <div key={c.id} className="flex gap-2.5 p-3 rounded-lg bg-[var(--bg-secondary)]">
-              <div className="relative w-8 h-8 rounded-full shrink-0 bg-[var(--brand-pale)] flex items-center justify-center text-[var(--brand)] text-xs font-bold">
-                {c.user.avatar ? (
-                  <img src={c.user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
-                ) : (
-                  c.user.username.slice(0, 1)
-                )}
-                {c.isAdmin && (
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#FFD700] flex items-center justify-center shadow-sm border-[1.5px] border-[var(--bg-secondary)]"
-                    title="管理员">
-                    <svg className="w-2 h-2" viewBox="0 0 24 24" fill="#B8860B">
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-                    </svg>
-                  </span>
+          {(showAllComments ? comments : comments.slice(0, COMMENTS_PER_PAGE_DISPLAY)).map(c => {
+            const replies = c.replies || []
+            const showReplies = expandedReplies.has(c.id)
+            const visibleReplies = showReplies ? replies : replies.slice(0, REPLIES_PREVIEW)
+            const hiddenRepliesCount = replies.length - visibleReplies.length
+            return (
+              <div key={c.id} className="space-y-2">
+                {renderComment(c)}
+                {/* 嵌套回复 */}
+                {replies.length > 0 && (
+                  <div className="ml-10 pl-3 border-l-2 border-[var(--brand-pale)] space-y-2">
+                    {visibleReplies.map(r => renderComment(r, true))}
+                    {/* 折叠按钮：回复 > 1 条 */}
+                    {hiddenRepliesCount > 0 && (
+                      <button
+                        onClick={() => setExpandedReplies(prev => {
+                          const next = new Set(prev)
+                          next.add(c.id)
+                          return next
+                        })}
+                        className="ml-2 text-[11px] text-[var(--brand)] hover:underline flex items-center gap-0.5"
+                      >
+                        共 {replies.length} 条回复 ▾
+                      </button>
+                    )}
+                    {showReplies && replies.length > REPLIES_PREVIEW && (
+                      <button
+                        onClick={() => setExpandedReplies(prev => {
+                          const next = new Set(prev)
+                          next.delete(c.id)
+                          return next
+                        })}
+                        className="ml-2 text-[11px] text-[var(--text-muted)] hover:text-[var(--brand)] hover:underline flex items-center gap-0.5"
+                      >
+                        收起 ▴
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium text-[var(--text-primary)]">{c.user.username}</span>
-                  <span className="text-[9px] text-[var(--text-muted)]">{timeAgoStr(c.createdAt)}</span>
-                  {(c.isMine || isAdmin) && (
-                    <button
-                      onClick={() => remove(c.id)}
-                      disabled={deleting === c.id}
-                      className={`ml-auto text-[10px] transition-colors ${
-                        c.isMine ? 'text-[var(--text-muted)] hover:text-[var(--danger)]' : 'text-[var(--danger)]/60 hover:text-[var(--danger)]'
-                      }`}
-                    >
-                      {deleting === c.id ? '删除中...' : isAdmin && !c.isMine ? '管理员删除' : '删除'}
-                    </button>
-                  )}
-                </div>
-                <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap break-words">{c.content}</p>
-              </div>
-            </div>
-          ))}
+            )
+          })}
+          {/* 评论总数折叠：超过 20 条 */}
+          {!showAllComments && comments.length > COMMENTS_PER_PAGE_DISPLAY && (
+            <button
+              onClick={() => setShowAllComments(true)}
+              className="w-full py-2.5 text-xs text-[var(--brand)] hover:bg-[var(--brand-bg)] rounded-lg transition-colors flex items-center justify-center gap-1"
+            >
+              还有 {total - COMMENTS_PER_PAGE_DISPLAY} 条评论 ▾
+            </button>
+          )}
+          {showAllComments && comments.length > COMMENTS_PER_PAGE_DISPLAY && (
+            <button
+              onClick={() => setShowAllComments(false)}
+              className="w-full py-2.5 text-xs text-[var(--text-muted)] hover:text-[var(--brand)] hover:bg-[var(--bg-secondary)] rounded-lg transition-colors flex items-center justify-center gap-1"
+            >
+              收起评论 ▴
+            </button>
+          )}
         </div>
       )}
 

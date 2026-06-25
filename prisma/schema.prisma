@@ -19,6 +19,8 @@ model User {
   mutedReason      String?    // 禁言原因/通知文案
   lastLoginAt      DateTime?
   profileChangedAt DateTime?  // 用户名/头像上次修改时间；注册 30 天内可改一次，之后每 180 天一次
+  gender           String?    // male | female | other
+  birthday         DateTime?  // 生日
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
@@ -124,6 +126,8 @@ model Banner {
   showButton    Boolean  @default(false)
   isPortrait    Boolean  @default(false)
   portraitImages String?
+  isAd           Boolean  @default(false)
+  adLabel        String?  // 自定义标签文字，如"推广"、"广告"、"赞助"
   sortOrder     Int      @default(0)
   isActive      Boolean  @default(true)
   dramaId       String?
@@ -271,12 +275,35 @@ model Comment {
   flag      String   @default("clean") // clean=正常  suspicious=可疑  toxic=已清除
   // 软删除
   isDeleted Boolean  @default(false)
+  // 父评论 id（回复某条评论时填写；顶级评论为 null）
+  parentId  String?
+  // 被回复用户名（冗余，避免被删除后丢失线索）
+  replyToUser String?
+  // 精选置顶（管理员）
+  pinned   Boolean   @default(false)
+  // 点赞数（冗余字段，避免每次 count）
+  likeCount Int      @default(0)
+  // 回复数（冗余字段）
+  replyCount Int     @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([dramaId, createdAt])
   @@index([userId])
   @@index([flag, createdAt])
+  @@index([parentId])
+  @@index([dramaId, pinned])
+}
+
+model CommentLike {
+  id        String   @id @default(uuid())
+  userId    String
+  commentId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
+  @@index([commentId])
+  @@index([userId])
 }
 
 model DramaSubscription {

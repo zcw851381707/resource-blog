@@ -19,6 +19,8 @@ interface Banner {
   bannerLink?: string | null
   showButton?: boolean
   isPortrait?: boolean
+  isAd?: boolean
+  adLabel?: string | null
   portraitImages?: string | null
   sortOrder: number
   isActive: boolean
@@ -108,6 +110,7 @@ export default function AdminBanners() {
     videoUrl: '', videoPoster: '', videoDuration: 0,
     gradientFrom: '#D47060', gradientTo: '#E89080',
     buttonLink: '', bannerLink: '', showButton: false, buttonText: '查看详情', isPortrait: false, portraitImages: '',
+    isAd: false, adLabel: '',
     sortOrder: 0, isActive: true,
     dramaId: '', description: '', imagePosition: 'center',
   })
@@ -123,35 +126,30 @@ export default function AdminBanners() {
   // 拖拽调整海报位置（直接 left/top，图片跟随鼠标方向）
   const imgRef = useRef<HTMLImageElement>(null)
   const [dragging, setDragging] = useState(false)
+  const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null)
   const [imgNaturalRatio, setImgNaturalRatio] = useState<number | null>(null)
-  const dragRef = useRef({ dragging: false, startCX: 0, startCY: 0, startL: -5, startT: -5, curL: -5, curT: -5 })
+  const dragRef = useRef({ dragging: false, startCX: 0, startCY: 0, startL: -5, startT: -5 })
 
   // 预计算默认位置（兼容旧格式 "x% y%" 和新格式 "left% top% zoom%"）
+  const p = (s: string, def: number) => { const n = parseFloat(s); return isNaN(n) ? def : n }
   const defaultPos = (() => {
     const parts = (form.imagePosition || 'center').split(/\s+/)
     if (parts.length >= 3) {
-      return { left: parseFloat(parts[0]) || -5, top: parseFloat(parts[1]) || -5, zoom: parseFloat(parts[2]) || 110 }
+      return { left: p(parts[0], -5), top: p(parts[1], -5), zoom: p(parts[2], 110) }
     }
-    const x = parseFloat(parts[0]) || 50
-    const y = parseFloat(parts[1]) || 50
+    const x = p(parts[0], 50)
+    const y = p(parts[1], 50)
     const zoom = 110
     return { left: x * (100 - zoom) / 100, top: y * (100 - zoom) / 100, zoom }
   })()
-
-  const applyImgPos = (l: number, t: number) => {
-    if (imgRef.current) {
-      imgRef.current.style.left = `${l}%`
-      imgRef.current.style.top = `${t}%`
-    }
-  }
 
   const handlePointerDown = (e: React.PointerEvent) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const cx = ((e.clientX - rect.left) / rect.width) * 100
     const cy = ((e.clientY - rect.top) / rect.height) * 100
-    // 从当前实际位置（defaultPos）读取，避免 posRef 过期值导致的跳位
     const curPos = defaultPos
-    dragRef.current = { dragging: true, startCX: cx, startCY: cy, startL: curPos.left, startT: curPos.top, curL: curPos.left, curT: curPos.top }
+    dragRef.current = { dragging: true, startCX: cx, startCY: cy, startL: curPos.left, startT: curPos.top }
+    setDragPos({ left: curPos.left, top: curPos.top })
     setDragging(true)
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
   }
@@ -161,26 +159,21 @@ export default function AdminBanners() {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const cx = ((e.clientX - rect.left) / rect.width) * 100
     const cy = ((e.clientY - rect.top) / rect.height) * 100
-    // 图片直接跟随鼠标方向：鼠标往右 → 图片往右
     const dx = cx - dragRef.current.startCX
     const dy = cy - dragRef.current.startCY
     const newL = Math.round(dragRef.current.startL + dx)
     const newT = Math.round(dragRef.current.startT + dy)
-    dragRef.current.curL = newL
-    dragRef.current.curT = newT
-    applyImgPos(newL, newT)
+    setDragPos({ left: newL, top: newT })
   }
 
   const handlePointerUp = () => {
     if (!dragRef.current.dragging) return
     dragRef.current.dragging = false
     setDragging(false)
-    // 保存拖拽后的位置 + 当前实际 zoom
-    // 限制范围，防止图片完全滑出视野
     const zoom = defaultPos.zoom
-    const clampedL = Math.min(0, Math.max(30 - zoom, Math.round(dragRef.current.curL)))
-    const clampedT = Math.min(0, Math.max(30 - zoom, Math.round(dragRef.current.curT)))
-    setForm(prev => ({ ...prev, imagePosition: `${clampedL}% ${clampedT}% ${zoom}%` }))
+    const cur = dragPos || { left: defaultPos.left, top: defaultPos.top }
+    setForm(prev => ({ ...prev, imagePosition: `${cur.left}% ${cur.top}% ${zoom}%` }))
+    setDragPos(null)
   }
 
   const load = async () => {
@@ -236,6 +229,8 @@ export default function AdminBanners() {
           buttonText: form.showButton ? (form.buttonText || '查看详情') : null,
           bannerLink: form.bannerLink || null,
           isPortrait: form.isPortrait ?? false,
+          isAd: form.isAd ?? false,
+          adLabel: form.isAd ? (form.adLabel?.trim() || null) : null,
           portraitImages: form.portraitImages || null,
           mediaType: form.mediaType,
           videoUrl: form.videoUrl || null,
@@ -266,6 +261,7 @@ export default function AdminBanners() {
       videoUrl: '', videoPoster: '', videoDuration: 0,
       gradientFrom: '#D47060', gradientTo: '#E89080',
       buttonLink: '', bannerLink: '', showButton: false, buttonText: '查看详情', isPortrait: false, portraitImages: '',
+      isAd: false, adLabel: '',
       sortOrder: 0, isActive: true,
       dramaId: '', description: '', imagePosition: 'center',
     })
@@ -281,6 +277,7 @@ export default function AdminBanners() {
       videoUrl: b.videoUrl || '', videoPoster: b.videoPoster || '', videoDuration: b.videoDuration || 0,
       gradientFrom: b.gradientFrom, gradientTo: b.gradientTo,
       buttonLink: b.buttonLink || '', bannerLink: b.bannerLink || '', showButton: b.showButton || false, buttonText: b.buttonText || '查看详情', isPortrait: b.isPortrait || false, portraitImages: b.portraitImages || '',
+      isAd: b.isAd || false, adLabel: b.adLabel || '',
       sortOrder: b.sortOrder, isActive: b.isActive,
       dramaId: b.dramaId || '', description: b.description || '',
       imagePosition: b.imagePosition || 'center',
@@ -435,9 +432,8 @@ export default function AdminBanners() {
   const isVideo = form.mediaType === 'video'
 
   // 计算图片样式（渲染时直接计算，避免 useEffect 时序问题）
-  const isDragging = dragRef.current.dragging
-  const curLeft = isDragging ? dragRef.current.curL : defaultPos.left
-  const curTop = isDragging ? dragRef.current.curT : defaultPos.top
+  const curLeft = dragPos ? dragPos.left : defaultPos.left
+  const curTop = dragPos ? dragPos.top : defaultPos.top
   const curZoom = defaultPos.zoom
   const imgStyle: React.CSSProperties = {
     position: 'absolute',
@@ -707,6 +703,24 @@ export default function AdminBanners() {
               </div>
             </div>
           )}
+
+          {/* 广告/推广标签 */}
+          <div className="mt-3 p-3 bg-[var(--bg-secondary)] rounded-lg">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.isAd || false} onChange={e => setForm({ ...form, isAd: e.target.checked })}
+                className="w-4 h-4 accent-[var(--brand)]" />
+              <span className="text-sm font-medium text-[var(--text-secondary)]">标记为广告 / 推广</span>
+              <span className="text-xs text-[var(--text-muted)]">勾选后前台右上角显示标签</span>
+            </label>
+            {form.isAd && (
+              <div className="mt-2 ml-6">
+                <label className="block text-xs text-[var(--text-secondary)] mb-1">标签文字（留空显示"广告"）</label>
+                <input value={form.adLabel || ''} onChange={e => setForm({ ...form, adLabel: e.target.value })}
+                  placeholder="如：推广 / 广告 / 赞助"
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]" />
+              </div>
+            )}
+          </div>
 
           {/* 竖版海报模式 */}
           <div className="flex items-center gap-3 mt-3">

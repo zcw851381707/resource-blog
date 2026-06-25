@@ -44,7 +44,7 @@ async function getWebhookUrl(): Promise<string | null> {
 }
 
 async function sendLarkMessage(webhookUrl: string, drama: {
-  id: string; title: string; slug: string; airTime: string | null
+  id: string; title: string; originalTitle?: string | null; slug: string; airTime: string | null
   currentEpisode: number | null; manualEpisode: number | null
   totalEpisodes: number | null; region: string | null; isNewlyAired: boolean
 }) {
@@ -53,12 +53,13 @@ async function sendLarkMessage(webhookUrl: string, drama: {
   const totalText = drama.totalEpisodes ? `共${drama.totalEpisodes}集` : ''
   const tagText = drama.isNewlyAired ? ' 🆕新播' : ''
   const regionText = drama.region ? `[${drama.region}] ` : ''
+  const displayTitle = drama.title || drama.originalTitle || '未命名剧集'
 
   const body = {
     msg_type: 'interactive',
     card: {
       header: {
-        title: { tag: 'plain_text', content: `📺 追剧提醒 — ${drama.title}开播了！` },
+        title: { tag: 'plain_text', content: `📺 追剧提醒 — ${displayTitle}开播了！` },
         template: 'blue' as const,
       },
       elements: [
@@ -66,7 +67,7 @@ async function sendLarkMessage(webhookUrl: string, drama: {
           tag: 'div',
           text: {
             tag: 'lark_md',
-            content: `**${regionText}${drama.title}**${tagText}\n${drama.airTime || ''} ${epText} ${totalText}`,
+            content: `**${regionText}${displayTitle}**${tagText}\n${drama.airTime || ''} ${epText} ${totalText}`,
           },
         },
         {
@@ -124,7 +125,7 @@ export async function GET() {
     }
 
     const r = await sendLarkMessage(webhookUrl, {
-      id: d.id, title: d.title, slug: d.slug,
+      id: d.id, title: d.title, originalTitle: (d as Record<string, unknown>).originalTitle as string | null, slug: d.slug,
       airTime: d.airTime || null,
       currentEpisode: d.currentEpisode, manualEpisode: d.manualEpisode,
       totalEpisodes: d.totalEpisodes, region: d.region || null,

@@ -7,6 +7,7 @@ import Link from 'next/link'
 interface SearchResult {
   id: string
   title: string
+  originalTitle?: string | null
   slug: string
   coverImage?: string | null
   region?: string | null
@@ -148,7 +149,7 @@ function DramaList({ items }: { items: SearchResult[] }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-[var(--text-primary)]">{d.title}</p>
+        <p className="text-sm font-medium text-[var(--text-primary)]">{d.title || d.originalTitle}</p>
         {d.region && <p className="text-xs text-[var(--text-muted)] mt-0.5">{d.region}</p>}
       </div>
       <svg className="w-4 h-4 text-[var(--text-muted)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

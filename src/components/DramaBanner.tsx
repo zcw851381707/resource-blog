@@ -4,6 +4,7 @@ import Link from 'next/link'
 interface Drama {
   id: string
   title: string
+  originalTitle?: string | null
   slug: string
   coverImage?: string | null
   description?: string | null
@@ -40,7 +41,7 @@ export default function DramaBanner({ dramas }: DramaBannerProps) {
                 </div>
               )}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-                <p className="text-white text-sm font-medium line-clamp-1">{drama.title}</p>
+                <p className="text-white text-sm font-medium line-clamp-1">{drama.title || drama.originalTitle}</p>
               </div>
             </div>
           </Link>

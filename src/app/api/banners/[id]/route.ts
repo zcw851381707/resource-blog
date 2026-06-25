@@ -12,7 +12,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params
     const body = await request.json()
-    const { dramaId, description, imagePosition, showButton, bannerLink, isPortrait, portraitImages, image, mediaType, videoUrl, videoPoster, videoDuration, ...rest } = body
+    const { dramaId, description, imagePosition, showButton, bannerLink, isPortrait, portraitImages, isAd, adLabel, image, mediaType, videoUrl, videoPoster, videoDuration, ...rest } = body
 
     // 获取旧记录，检查图片/视频是否被替换
     const old = await prisma.banner.findUnique({ where: { id }, select: { image: true, videoUrl: true, videoPoster: true } })
@@ -32,6 +32,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         bannerLink: bannerLink !== undefined ? (bannerLink || null) : undefined,
         isPortrait: isPortrait !== undefined ? (isPortrait ?? false) : undefined,
         portraitImages: portraitImages !== undefined ? (portraitImages || null) : undefined,
+        isAd: isAd !== undefined ? (isAd ?? false) : undefined,
+        adLabel: isAd !== undefined ? (isAd ? (adLabel?.trim() || null) : null) : undefined,
       },
     })
 

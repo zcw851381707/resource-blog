@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useAuth } from '@/lib/auth-context'
+import { isUpcomingActive } from '@/lib/drama-schedule'
 
 interface DramaLite {
   id: string
   title: string
+  originalTitle?: string | null
   slug: string
   coverImage?: string | null
   imagePosition?: string | null
@@ -35,7 +37,7 @@ type FilterTab = 'all' | 'airing' | 'completed' | 'upcoming'
 
 function getStatusLabel(d: DramaLite): { text: string; cls: string } | null {
   if (d.isCompleted) return { text: '已完结', cls: 'bg-black/50' }
-  if (d.isUpcoming) return { text: '即将上线', cls: 'bg-[var(--warning)] text-white' }
+  if (isUpcomingActive(d)) return { text: '即将上线', cls: 'bg-[var(--warning)] text-white' }
   if (d.isOnSchedule) return { text: '播出中', cls: 'bg-[var(--success)] text-white' }
   return null
 }
@@ -117,7 +119,7 @@ export default function FavoritesPage() {
     if (tab === 'all') return true
     if (tab === 'airing') return d.isOnSchedule && !d.isCompleted
     if (tab === 'completed') return d.isCompleted
-    if (tab === 'upcoming') return d.isUpcoming
+    if (tab === 'upcoming') return isUpcomingActive(d)
     return true
   })
 
@@ -128,7 +130,7 @@ export default function FavoritesPage() {
       return d && d.isOnSchedule && !d.isCompleted
     }).length,
     completed: items.filter(i => dramas[i.dramaId]?.isCompleted).length,
-    upcoming: items.filter(i => dramas[i.dramaId]?.isUpcoming).length,
+    upcoming: items.filter(i => isUpcomingActive(dramas[i.dramaId])).length,
   }
 
   return (
@@ -209,7 +211,7 @@ export default function FavoritesPage() {
                 </Link>
                 <div className="p-2.5">
                   <Link href={`/drama/${d.slug}`} className="block text-sm font-semibold text-[var(--text-primary)] truncate hover:text-[var(--brand)] transition-colors">
-                    {d.title}
+                    {d.title || d.originalTitle}
                   </Link>
                   <p className="text-xs text-[var(--text-muted)] mt-0.5">{getEpLabel(d)}</p>
                   <p className="text-[10px] text-[var(--text-muted)] mt-0.5 flex items-center gap-1">
