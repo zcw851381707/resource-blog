@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>感谢墙 - 设计稿</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background: #f5f5f5; padding: 20px; margin: 0; }
+  .design { max-width: 1100px; margin: 0 auto 40px; background: #fff; padding: 30px; border-radius: 16px; }
+  h1 { color: #C8283C; font-size: 18px; margin: 0 0 6px; }
+  .subtitle { color: #999; font-size: 13px; margin-bottom: 20px; }
+  
+  /* 公共：头像墙 */
+  .wall { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; padding: 16px; background: #fafafa; border-radius: 12px; }
+  .person { display: flex; flex-direction: column; align-items: center; width: 60px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #FFB6B0, #C8283C); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; font-size: 16px; margin-bottom: 4px; }
+  .name { font-size: 11px; color: #666; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  
+  /* 版本 A：横向滚动头像 */
+  .v-a .wall { flex-wrap: nowrap; overflow-x: auto; padding: 16px; }
+  
+  /* 版本 B：网格墙 */
+  .v-b .wall { display: grid; grid-template-columns: repeat(15, 1fr); gap: 16px; }
+  .v-b .person { width: auto; }
+  
+  /* 版本 C：心形 + 头像 */
+  .v-c .wall { display: flex; flex-wrap: wrap; }
+  .v-c .person { position: relative; }
+  .v-c .avatar { box-shadow: 0 2px 8px rgba(200,40,60,0.2); border: 2px solid #fff; }
+  .v-c .heart { position: absolute; bottom: 16px; right: -4px; background: #C8283C; color: #fff; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; border: 2px solid #fff; }
+  
+  .btn { display: inline-block; padding: 6px 14px; background: linear-gradient(135deg, #FF8A80, #C8283C); color: #fff; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(200,40,60,0.2); }
+  .label { color: #666; font-size: 12px; margin-bottom: 8px; font-weight: 500; }
+  .count { color: #C8283C; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="design v-a">
+  <h1>版本 A：横向滚动头像墙</h1>
+  <div class="subtitle">一行头像向右滚动，露出更多支持者</div>
+  <div class="label">感谢 <span class="count">1,247</span> 位站友的支持 ♥ <span class="btn">一起支持 →</span></div>
+  <div class="wall">
+    <div class="person"><div class="avatar">小</div><div class="name">小明</div></div>
+    <div class="person"><div class="avatar">曦</div><div class="name">晨光曦</div></div>
+    <div class="person"><div class="avatar">阿</div><div class="name">阿星</div></div>
+    <div class="person"><div class="avatar">林</div><div class="name">林夕</div></div>
+    <div class="person"><div class="avatar">梦</div><div class="name">梦璃</div></div>
+    <div class="person"><div class="avatar">小</div><div class="name">小七</div></div>
+    <div class="person"><div class="avatar">深</div><div class="name">深夜追剧人</div></div>
+    <div class="person"><div class="avatar">空</div><div class="name">空白格</div></div>
+    <div class="person"><div class="avatar">周</div><div class="name">周周</div></div>
+    <div class="person"><div class="avatar">阳</div><div class="name">阳光</div></div>
+    <div class="person"><div class="avatar">夜</div><div class="name">夜空</div></div>
+    <div class="person"><div class="avatar">星</div><div class="name">星尘</div></div>
+  </div>
+  <div style="font-size:12px;color:#999">优点：节省空间 / 缺点：头像一晃而过，存在感弱</div>
+</div>
+
+<div class="design v-b">
+  <h1>版本 B：网格墙（多行展示，完整可见）</h1>
+  <div class="subtitle">15列网格，几十到几百人都能展示</div>
+  <div class="label">感谢 <span class="count">1,247</span> 位站友的支持 ♥ <span class="btn">一起支持 →</span></div>
+  <div class="wall">
+    <div class="person"><div class="avatar">小</div><div class="name">小明</div></div>
+    <div class="person"><div class="avatar">曦</div><div class="name">晨光曦</div></div>
+    <div class="person"><div class="avatar">阿</div><div class="name">阿星</div></div>
+    <div class="person"><div class="avatar">林</div><div class="name">林夕</div></div>
+    <div class="person"><div class="avatar">梦</div><div class="name">梦璃</div></div>
+    <div class="person"><div class="avatar">小</div><div class="name">小七</div></div>
+    <div class="person"><div class="avatar">深</div><div class="name">深夜追剧人</div></div>
+    <div class="person"><div class="avatar">空</div><div class="name">空白格</div></div>
+    <div class="person"><div class="avatar">周</div><div class="name">周周</div></div>
+    <div class="person"><div class="avatar">阳</div><div class="name">阳光</div></div>
+    <div class="person"><div class="avatar">夜</div><div class="name">夜空</div></div>
+    <div class="person"><div class="avatar">星</div><div class="name">星尘</div></div>
+    <div class="person"><div class="avatar">小</div><div class="name">小红</div></div>
+    <div class="person"><div class="avatar">追</div><div class="name">追剧人</div></div>
+    <div class="person"><div class="avatar">剧</div><div class="name">剧迷</div></div>
+    <div class="person"><div class="avatar">迷</div><div class="name">迷妹</div></div>
+    <div class="person"><div class="avatar">天</div><div class="name">天涯</div></div>
+    <div class="person"><div class="avatar">海</div><div class="name">海角</div></div>
+    <div class="person"><div class="avatar">游</div><div class="name">游客</div></div>
+    <div class="person"><div class="avatar">客</div><div class="name">客栈</div></div>
+  </div>
+  <div style="font-size:12px;color:#999">优点：存在感强、所有人看到 / 缺点：占空间</div>
+</div>
+
+<div class="design v-c">
+  <h1>版本 C：心形墙（按时间打赏顺序自动排列）</h1>
+  <div class="subtitle">支持者头像随机/按时间堆成心形图案</div>
+  <div class="label">感谢 <span class="count">1,247</span> 位站友的支持 ♥ <span class="btn">一起支持 →</span></div>
+  <div style="display:flex;justify-content:center;padding:20px;background:linear-gradient(135deg, #fff5f5, #fff);border-radius:12px">
+    <svg width="500" height="200" viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="h" x="0" y="0" width="36" height="36" patternUnits="userSpaceOnUse">
+          <circle cx="18" cy="18" r="16" fill="#FFB6B0" stroke="#fff" stroke-width="2"/>
+        </pattern>
+        <mask id="heart">
+          <path d="M250,180 C250,180 80,110 80,55 C80,30 100,15 120,15 C160,15 230,55 250,90 C270,55 340,15 380,15 C400,15 420,30 420,55 C420,110 250,180 250,180 Z" fill="white"/>
+        </mask>
+      </defs>
+      <rect width="500" height="200" fill="url(#h)" mask="url(#heart)"/>
+      <text x="250" y="115" text-anchor="middle" fill="#C8283C" font-size="32" font-weight="bold" font-family="serif">1,247 ♥</text>
+    </svg>
+  </div>
+  <div style="font-size:12px;color:#999;margin-top:8px">优点：视觉冲击力强、有情感温度 / 缺点：实现复杂、小屏拥挤</div>
+</div>
+
+</body>
+</html>

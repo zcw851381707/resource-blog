@@ -9,6 +9,7 @@ import { DesktopNav, MobileNav } from '@/components/NavLinks'
 import Link from 'next/link'
 import ShareModal from '@/components/ShareModal'
 import { useAuth } from '@/lib/auth-context'
+import { calcCurrentEpisode } from '@/lib/drama-schedule-utils'
 
 function UserMenu() {
   const { user, logout, isAdmin } = useAuth()
@@ -22,6 +23,17 @@ function UserMenu() {
   const onEnter = () => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current)
     setOpen(true)
+    // 标记预约通知已读（剧上线提醒）
+    if (counts.subscriptionNotifs > 0) {
+      fetch('/api/subscriptions/mark-read', { method: 'POST' }).catch(() => {})
+      setCounts(c => ({ ...c, subscriptionNotifs: 0 }))
+    }
+    // 标记系统通知已读
+    if (notifCount > 0) {
+      fetch('/api/notifications', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+        .then(() => setNotifCount(0))
+        .catch(() => {})
+    }
   }
   const onLeave = () => {
     hoverTimer.current = setTimeout(() => setOpen(false), 300)
@@ -41,17 +53,22 @@ function UserMenu() {
         const favData = await favRes.json()
         const follData = await follRes.json()
         const follItems: Array<{ dramaId: string; status: string; progress: number }> = follData.items || []
-        const dramas: Record<string, { isCompleted: boolean; currentEpisode: number | null; manualEpisode: number | null; premiereEpisodes: number | null; startDate: string | null }> = follData.dramas || {}
+        const dramas: Record<string, { isCompleted: boolean; currentEpisode: number | null; manualEpisode: number | null; premiereEpisodes: number | null; startDate: string | null; airDays: string | null; airTime: string | null; episodesPerDay: number | null }> = follData.dramas || {}
         // 追剧中且有更新（管理员集数 > 用户记录）
         let newEp = 0
         for (const it of follItems) {
           if (it.status !== 'watching') continue
           const d = dramas[it.dramaId]
           if (!d || d.isCompleted) continue
-          let ep = d.manualEpisode ?? d.currentEpisode ?? 0
-          if (d.premiereEpisodes && d.startDate && new Date(d.startDate) <= new Date()) {
-            ep = Math.max(ep, d.premiereEpisodes)
-          }
+          const ep = calcCurrentEpisode({
+            currentEpisode: d.currentEpisode,
+            manualEpisode: d.manualEpisode,
+            startDate: d.startDate,
+            premiereEpisodes: d.premiereEpisodes,
+            episodesPerDay: d.episodesPerDay,
+            airDays: d.airDays,
+            airTime: d.airTime,
+          })
           if (ep > (it.progress || 0)) newEp++
         }
         setCounts({
@@ -99,20 +116,20 @@ function UserMenu() {
               </svg>
             </span>
           )}
-          {/* 头像上的红点（最高优先级：追剧新集数） */}
+          {/* 头像红点：追剧更新 > 预约上线 > 系统通知 */}
           {counts.newEpisodes > 0 ? (
             <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-[var(--bg)]">
               {counts.newEpisodes > 9 ? '9+' : counts.newEpisodes}
+            </span>
+          ) : counts.subscriptionNotifs > 0 ? (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-[var(--bg)]" title="你预约的剧已上线">
+              {counts.subscriptionNotifs > 9 ? '9+' : counts.subscriptionNotifs}
             </span>
           ) : notifCount > 0 ? (
             <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-[var(--bg)]">
               {notifCount > 9 ? '9+' : notifCount}
             </span>
           ) : null}
-          {/* 预约通知蓝点 */}
-          {counts.subscriptionNotifs > 0 && counts.newEpisodes === 0 && notifCount === 0 && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-blue-500 border-2 border-[var(--bg)]" title="预约的剧已上线" />
-          )}
           {/* 被禁言黄点 */}
           {user.mutedUntil && new Date(user.mutedUntil) > new Date() && (
             <span className="absolute -top-0.5 right-3 min-w-[14px] h-[14px] px-1 rounded-full bg-orange-500 text-white text-[8px] font-bold flex items-center justify-center border-2 border-[var(--bg)]" title="你已被禁言">
@@ -171,7 +188,7 @@ function UserMenu() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <span className="flex-1">我的预约</span>
             {counts.subscriptionNotifs > 0 && (
-              <span className="min-w-[20px] h-[20px] px-1.5 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
                 {counts.subscriptionNotifs > 99 ? '99+' : counts.subscriptionNotifs}
               </span>
             )}

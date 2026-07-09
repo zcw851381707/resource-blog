@@ -4,7 +4,7 @@ import { useRef, useCallback, useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toCanvas } from 'html-to-image'
-import { isUpcomingActive } from '@/lib/drama-schedule'
+import { isUpcomingActive, calcCurrentEpisode } from '@/lib/drama-schedule-utils'
 
 interface DramaData {
   id: string
@@ -63,7 +63,15 @@ function getWeekDates(): Date[] {
 }
 
 function DramaItem({ drama, dayIndex, weekDates }: { drama: DramaData; dayIndex: number; weekDates: Date[] }) {
-  const ep = drama.manualEpisode ?? drama.currentEpisode
+  const ep = calcCurrentEpisode({
+    currentEpisode: drama.currentEpisode,
+    manualEpisode: drama.manualEpisode,
+    startDate: drama.startDate,
+    premiereEpisodes: drama.premiereEpisodes,
+    episodesPerDay: drama.episodesPerDay,
+    airDays: drama.airDays,
+    airTime: drama.airTime,
+  })
   const todayIdx = getTodayIndex()
 
   // 判断今天是否已到首播日
@@ -489,8 +497,7 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
     return () => clearInterval(timer)
   }, [])
 
-  // 播出后排序：未播 → 即将播出(置顶) → 播完1小时内 → 播完超1小时，停播剧排最后
-  // 规则：如果有任何剧进入"10分钟内播出"窗口，所有已播完但还在1小时内的剧直接挤到最后
+  // 播出后排序：即将播出的置顶，刚播完的顺位第二，未播的按时间排，已播超1小时靠后，停播剧排最后
   function sortByAiring(dramas: DramaData[], dayIndex: number): DramaData[] {
     const isPaused = (d: DramaData) => {
       const paused = (d.pausedDays || '').split(',').map(s => s.trim()).filter(Boolean)
@@ -498,13 +505,6 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
     }
     const now = new Date()
     const nowMins = now.getHours() * 60 + now.getMinutes()
-
-    // 检查是否有剧即将播出（10分钟内）
-    const hasIncoming = dramas.some(d => {
-      if (!d.airTime || isPaused(d)) return false
-      const airMins = parseInt(d.airTime.split(':')[0]) * 60 + parseInt(d.airTime.split(':')[1])
-      return nowMins >= airMins - 10 && nowMins < airMins
-    })
 
     return [...dramas].sort((a, b) => {
       // 停播剧排最后
@@ -514,12 +514,10 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
         const getPriority = (d: DramaData) => {
           if (!d.airTime || isPaused(d)) return 2
           const airMins = parseInt(d.airTime.split(':')[0]) * 60 + parseInt(d.airTime.split(':')[1])
-          if (nowMins < airMins - 10) return 0       // 未播（距离开播 > 10分钟）
-          if (nowMins < airMins) return -1            // 10分钟内 → 置顶
-          // 已播完：如果有其他剧即将播出，直接挤到最后
-          if (hasIncoming) return 1
-          if (nowMins < airMins + 60) return 0        // 播完1小时内 → 保持原位
-          return 1                                     // 播完超1小时 → 末尾
+          if (nowMins >= airMins - 10 && nowMins < airMins) return -1  // 10分钟内 → 置顶
+          if (nowMins < airMins) return 0                               // 未播（距离开播 > 10分钟）
+          if (nowMins < airMins + 60) return -1                         // 刚播完1小时内 → 顺位第二
+          return 1                                                       // 播完超1小时 → 靠后
         }
         // 全部播完超1小时后，恢复正常时间排序
         const allDone = dramas.filter(d => !isPaused(d) && d.airTime).every(d => getPriority(d) >= 1)
@@ -752,7 +750,15 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                           ) : (
                             <div style={{ display: 'flex', flexWrap: 'wrap' }}>
                               {dramas.map((d, di) => {
-                                const ep = d.manualEpisode ?? d.currentEpisode
+                                const ep = calcCurrentEpisode({
+                                  currentEpisode: d.currentEpisode,
+                                  manualEpisode: d.manualEpisode,
+                                  startDate: d.startDate,
+                                  premiereEpisodes: d.premiereEpisodes,
+                                  episodesPerDay: d.episodesPerDay,
+                                  airDays: d.airDays,
+                                  airTime: d.airTime,
+                                })
                                 const isPremiered = d.expectedDate && (() => {
                                   const ed = new Date(d.expectedDate!)
                                   ed.setHours(0, 0, 0, 0)

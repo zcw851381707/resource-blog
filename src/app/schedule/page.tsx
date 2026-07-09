@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import WeeklyCalendar from '@/components/WeeklyCalendar'
 import { buildWeeklySchedule, hydrateDramaDisplayFields } from '@/lib/drama-schedule'
 
+export const dynamic = 'force-dynamic'
+
 export default async function SchedulePage() {
   const allDramas = await prisma.drama.findMany({
     orderBy: { createdAt: 'desc' },

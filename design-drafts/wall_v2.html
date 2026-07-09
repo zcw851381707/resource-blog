@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>感谢墙设计稿 v2</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", sans-serif; background: #fafaf8; padding: 24px; margin: 0; }
+  .design { max-width: 1100px; margin: 0 auto; background: #fff; border-radius: 24px; padding: 56px 40px 44px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid #ebe7e4; }
+  
+  .head { text-align: center; margin-bottom: 36px; }
+  .title { font-size: 26px; font-weight: 800; color: #2a2a2a; letter-spacing: 8px; margin-bottom: 18px; }
+  .title span { color: #C8283C; }
+  .divider { display: inline-block; height: 3px; width: 40px; background: linear-gradient(90deg, #C8283C, #DC6464); border-radius: 2px; margin-bottom: 24px; }
+  .quote { color: #555; font-size: 15px; line-height: 2; max-width: 620px; margin: 0 auto; letter-spacing: 0.5px; font-weight: 400; }
+  .quote em { color: #C8283C; font-style: normal; font-weight: 600; padding: 0 2px; }
+  .sign { color: #999; font-size: 12px; letter-spacing: 4px; margin-top: 18px; }
+  
+  /* 双排头像滚动 */
+  .walls { background: linear-gradient(180deg, #faf8f6 0%, #fff 100%); border-radius: 20px; padding: 28px 0; margin-bottom: 28px; overflow: hidden; }
+  .row { display: flex; gap: 20px; margin-bottom: 18px; }
+  .row:last-child { margin-bottom: 0; }
+  .row-inner { display: flex; gap: 20px; animation-timing-function: linear; animation-iteration-count: infinite; }
+  .row-1 .row-inner { animation-name: scrollLeft; animation-duration: 60s; }
+  .row-2 .row-inner { animation-name: scrollRight; animation-duration: 75s; }
+  @keyframes scrollLeft { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes scrollRight { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+  
+  .person { display: flex; flex-direction: column; align-items: center; width: 68px; flex-shrink: 0; }
+  .avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #FFD3CD 0%, #C8283C 100%); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 18px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(200,40,60,0.12); border: 2px solid #fff; }
+  .name { font-size: 12px; color: #666; max-width: 68px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+  
+  .footer { display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .count-num { color: #C8283C; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+  .count-text { color: #888; font-size: 13px; }
+  .divider-dot { color: #ddd; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 11px 26px; background: #C8283C; color: #fff; border-radius: 999px; font-size: 13px; font-weight: 600; letter-spacing: 1px; cursor: pointer; box-shadow: 0 4px 14px rgba(200,40,60,0.22); transition: all 0.2s; }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(200,40,60,0.3); }
+</style>
+</head>
+<body>
+
+<div class="design">
+  <div class="head">
+    <div class="title">感 <span>谢</span> 墙</div>
+    <div class="divider"></div>
+    <p class="quote">
+      晨光曦 能走到今天，离不开每一位站友的陪伴与支持。<br>
+      你们每一次<em>点击</em>、每一次<em>收藏</em>、每一次<em>评论</em>，都是我继续前行的动力。<br>
+      愿我们继续在这片光影里相遇。
+    </p>
+    <p class="sign">— 致每一位陪晨光曦走到这里的人 —</p>
+  </div>
+  
+  <div class="walls">
+    <div class="row row-1">
+      <div class="row-inner">
+        <div class="person"><div class="avatar">小</div><div class="name">小明</div></div>
+        <div class="person"><div class="avatar">曦</div><div class="name">晨光曦</div></div>
+        <div class="person"><div class="avatar">阿</div><div class="name">阿星</div></div>
+        <div class="person"><div class="avatar">林</div><div class="name">林夕</div></div>
+        <div class="person"><div class="avatar">梦</div><div class="name">梦璃</div></div>
+        <div class="person"><div class="avatar">深</div><div class="name">深夜追剧人</div></div>
+        <div class="person"><div class="avatar">空</div><div class="name">空白格</div></div>
+        <div class="person"><div class="avatar">周</div><div class="name">周周</div></div>
+        <div class="person"><div class="avatar">阳</div><div class="name">阳光</div></div>
+        <div class="person"><div class="avatar">夜</div><div class="name">夜空</div></div>
+        <div class="person"><div class="avatar">星</div><div class="name">星尘</div></div>
+        <div class="person"><div class="avatar">小</div><div class="name">小红</div></div>
+        <div class="person"><div class="avatar">追</div><div class="name">追剧人</div></div>
+        <div class="person"><div class="avatar">剧</div><div class="name">剧迷</div></div>
+        <!-- 重复一份让动画无缝循环 -->
+        <div class="person"><div class="avatar">小</div><div class="name">小明</div></div>
+        <div class="person"><div class="avatar">曦</div><div class="name">晨光曦</div></div>
+        <div class="person"><div class="avatar">阿</div><div class="name">阿星</div></div>
+        <div class="person"><div class="avatar">林</div><div class="name">林夕</div></div>
+        <div class="person"><div class="avatar">梦</div><div class="name">梦璃</div></div>
+        <div class="person"><div class="avatar">深</div><div class="name">深夜追剧人</div></div>
+        <div class="person"><div class="avatar">空</div><div class="name">空白格</div></div>
+        <div class="person"><div class="avatar">周</div><div class="name">周周</div></div>
+        <div class="person"><div class="avatar">阳</div><div class="name">阳光</div></div>
+        <div class="person"><div class="avatar">夜</div><div class="name">夜空</div></div>
+        <div class="person"><div class="avatar">星</div><div class="name">星尘</div></div>
+        <div class="person"><div class="avatar">小</div><div class="name">小红</div></div>
+        <div class="person"><div class="avatar">追</div><div class="name">追剧人</div></div>
+        <div class="person"><div class="avatar">剧</div><div class="name">剧迷</div></div>
+      </div>
+    </div>
+    <div class="row row-2">
+      <div class="row-inner">
+        <div class="person"><div class="avatar">迷</div><div class="name">迷妹</div></div>
+        <div class="person"><div class="avatar">天</div><div class="name">天涯</div></div>
+        <div class="person"><div class="avatar">海</div><div class="name">海角</div></div>
+        <div class="person"><div class="avatar">梦</div><div class="name">梦里</div></div>
+        <div class="person"><div class="avatar">星</div><div class="name">星河</div></div>
+        <div class="person"><div class="avatar">月</div><div class="name">月亮</div></div>
+        <div class="person"><div class="avatar">小</div><div class="name">小七</div></div>
+        <div class="person"><div class="avatar">阿</div><div class="name">阿狸</div></div>
+        <div class="person"><div class="avatar">空</div><div class="name">空气</div></div>
+        <div class="person"><div class="avatar">林</div><div class="name">林深</div></div>
+        <div class="person"><div class="avatar">辰</div><div class="name">星辰</div></div>
+        <div class="person"><div class="avatar">白</div><div class="name">白茶</div></div>
+        <div class="person"><div class="avatar">小</div><div class="name">小小</div></div>
+        <div class="person"><div class="avatar">路</div><div class="name">路人甲</div></div>
+        <div class="person"><div class="avatar">迷</div><div class="name">迷妹</div></div>
+        <div class="person"><div class="avatar">天</div><div class="name">天涯</div></div>
+        <div class="person"><div class="avatar">海</div><div class="name">海角</div></div>
+        <div class="person"><div class="avatar">梦</div><div class="name">梦里</div></div>
+        <div class="person"><div class="avatar">星</div><div class="name">星河</div></div>
+        <div class="person"><div class="avatar">月</div><div class="name">月亮</div></div>
+        <div class="person"><div class="avatar">小</div><div class="name">小七</div></div>
+        <div class="person"><div class="avatar">阿</div><div class="name">阿狸</div></div>
+        <div class="person"><div class="avatar">空</div><div class="name">空气</div></div>
+        <div class="person"><div class="avatar">林</div><div class="name">林深</div></div>
+        <div class="person"><div class="avatar">辰</div><div class="name">星辰</div></div>
+        <div class="person"><div class="avatar">白</div><div class="name">白茶</div></div>
+        <div class="person"><div class="avatar">小</div><div class="name">小小</div></div>
+        <div class="person"><div class="avatar">路</div><div class="name">路人甲</div></div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <span class="count-num">1,247</span>
+    <span class="count-text">位站友的支持</span>
+    <span class="divider-dot">|</span>
+    <button class="btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      一起支持
+    </button>
+  </div>
+</div>
+
+</body>
+</html>

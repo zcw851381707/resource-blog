@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import DramaCard from '@/components/DramaCard'
 import DramaGrid from '@/components/DramaGrid'
-import { isUpcomingActive } from '@/lib/drama-schedule'
+import { isUpcomingActive } from '@/lib/drama-schedule-utils'
 
 interface Drama {
   id: string
@@ -29,7 +29,7 @@ interface Drama {
 
 const regions = [
   { key: '', label: '全部' },
-  { key: '中国', label: '中国' },
+  { key: '华语剧', label: '华语剧' },
   { key: '泰国', label: '泰剧' },
   { key: '韩国', label: '韩剧' },
   { key: '日本', label: '日剧' },
@@ -55,7 +55,7 @@ function AllPageContent() {
   const filtered = dramas.filter(d => {
     if (selectedRegion) {
       const regionMap: Record<string, string[]> = {
-        '中国': ['中国', '中国台湾', '中国香港', '中国澳门'],
+        '华语剧': ['中国', '中国台湾', '中国香港', '中国澳门'],
         '泰国': ['泰国'],
         '韩国': ['韩国'],
         '日本': ['日本'],

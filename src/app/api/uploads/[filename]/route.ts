@@ -18,6 +18,8 @@ const MIME_TYPES: Record<string, string> = {
 }
 
 const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mov', '.ogg'])
+// 本地开发时，图不存在则从线上代理，不用手动同步
+const PROXY_SOURCE = process.env.NODE_ENV === 'development' ? 'https://cgx851.com' : null
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ filename: string }> }) {
   const { filename } = await params
@@ -64,6 +66,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     })
   } catch {
+    // 本地开发时自动从线上代理，不需手动同步图片
+    if (PROXY_SOURCE) {
+      try {
+        const upstream = `${PROXY_SOURCE}/api/uploads/${safe}`
+        const resp = await fetch(upstream)
+        if (!resp.ok) return new NextResponse('Not Found', { status: 404 })
+        const buffer = Buffer.from(await resp.arrayBuffer())
+        const ext = path.extname(safe).toLowerCase()
+        const contentType = MIME_TYPES[ext] || 'application/octet-stream'
+        return new NextResponse(buffer, {
+          headers: {
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=86400',
+          },
+        })
+      } catch {
+        return new NextResponse('Not Found', { status: 404 })
+      }
+    }
     return new NextResponse('Not Found', { status: 404 })
   }
 }

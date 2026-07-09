@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useAuth } from '@/lib/auth-context'
-import { isUpcomingActive } from '@/lib/drama-schedule'
+import { isUpcomingActive, calcCurrentEpisode } from '@/lib/drama-schedule-utils'
 
 interface DramaLite {
   id: string
@@ -24,6 +24,9 @@ interface DramaLite {
   manualEpisode?: number | null
   premiereEpisodes?: number | null
   startDate?: string | null
+  airDays?: string | null
+  airTime?: string | null
+  episodesPerDay?: number | null
 }
 
 interface FavItem {
@@ -44,10 +47,15 @@ function getStatusLabel(d: DramaLite): { text: string; cls: string } | null {
 
 function getEpLabel(d: DramaLite): string {
   if (d.isCompleted && d.totalEpisodes) return `全 ${d.totalEpisodes} 集`
-  let ep = d.manualEpisode ?? d.currentEpisode
-  if (d.premiereEpisodes && d.startDate && new Date(d.startDate) <= new Date()) {
-    ep = Math.max(ep || 0, d.premiereEpisodes)
-  }
+  const ep = calcCurrentEpisode({
+    currentEpisode: d.currentEpisode,
+    manualEpisode: d.manualEpisode,
+    startDate: d.startDate,
+    premiereEpisodes: d.premiereEpisodes,
+    episodesPerDay: d.episodesPerDay,
+    airDays: d.airDays,
+    airTime: d.airTime,
+  })
   if (ep && d.totalEpisodes) return `更新至 EP ${ep}`
   if (d.totalEpisodes) return `共 ${d.totalEpisodes} 集`
   return '敬请期待'

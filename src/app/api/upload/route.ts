@@ -107,6 +107,18 @@ export async function POST(request: NextRequest) {
         if (mediaType === 'video' && clientDuration > 0) {
           response.duration = clientDuration
         }
+
+        // 本地开发时自动同步到线上服务器，防止图裂
+        if (process.env.NODE_ENV === 'development') {
+          try {
+            const { execSync } = require('child_process')
+            const key = `${process.env.HOME}/.ssh/chenxi_deploy`
+            execSync(`scp -i ${key} -o StrictHostKeyChecking=no -o ConnectTimeout=10 "${filePath}" root@192.255.132.108:/var/www/chenxi/public/uploads/`, { timeout: 30000 })
+          } catch (e) {
+            console.log('[upload] sync to server failed:', e instanceof Error ? e.message : e)
+          }
+        }
+
         resolve(response as { url: string; mediaType: string; size: number })
       })
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { isUpcomingActive } from '@/lib/drama-schedule'
+import { isUpcomingActive, calcCurrentEpisode } from '@/lib/drama-schedule-utils'
 
 interface DramaInfo {
   id: string
@@ -22,6 +22,7 @@ interface DramaInfo {
   expectedDate?: Date | string | null
   startDate?: Date | string | null
   premiereEpisodes?: number | null
+  episodesPerDay?: number | null
 }
 
 interface BannerData {
@@ -297,11 +298,15 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
     const title = banner.title || drama?.title || ''
     // 未播出 → 不显示集数
     const notAiredYet = drama ? isUpcomingActive(drama) || (drama.startDate ? new Date(drama.startDate as string) > new Date() : false) : false
-    const rawEp = notAiredYet ? null : (drama ? (drama.manualEpisode ?? drama.currentEpisode) : null)
-    // 首播集数优先：如果设置了 premiereEpisodes 且大于当前记录，使用首播集数
-    const ep = !notAiredYet && drama?.premiereEpisodes && (!rawEp || drama.premiereEpisodes > (rawEp ?? 0))
-      ? drama.premiereEpisodes
-      : rawEp
+    const ep = notAiredYet ? null : (drama ? calcCurrentEpisode({
+      currentEpisode: drama.currentEpisode,
+      manualEpisode: drama.manualEpisode,
+      startDate: drama.startDate,
+      premiereEpisodes: drama.premiereEpisodes,
+      episodesPerDay: drama.episodesPerDay,
+      airDays: drama.airDays,
+      airTime: drama.airTime,
+    }) : null)
 
     const airDayLabels = drama?.airDays
       ? drama.airDays.split(',').map(d => dayNames[parseInt(d.trim())]).join('、')

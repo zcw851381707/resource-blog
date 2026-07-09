@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { isNewlyAiredActive, isRecentlyCompleted, isUpcomingActive } from '@/lib/drama-schedule'
+import { isNewlyAiredActive, isRecentlyCompleted, isUpcomingActive, calcCurrentEpisode } from '@/lib/drama-schedule-utils'
 
 interface DramaCardProps {
   id: string
@@ -25,6 +25,7 @@ interface DramaCardProps {
   startDate?: Date | string | null
   completedAt?: Date | string | null
   premiereEpisodes?: number | null
+  episodesPerDay?: number | null
   isOnSchedule?: boolean
   tags?: string | null
   seriesGroup?: string | null
@@ -32,16 +33,19 @@ interface DramaCardProps {
 }
 
 function getEpisodeLabel(drama: DramaCardProps): string | null {
-  // 已完结 → 左下角直接显示「全X集」
   if (drama.isCompleted) {
     if (drama.totalEpisodes) return `全${drama.totalEpisodes}集`
     return null
   }
-  // 首播连更后，已播集数至少是 premiereEpisodes
-  let ep = drama.manualEpisode ?? drama.currentEpisode
-  if (drama.premiereEpisodes && drama.startDate && new Date(drama.startDate) <= new Date()) {
-    ep = Math.max(ep || 0, drama.premiereEpisodes)
-  }
+  const ep = calcCurrentEpisode({
+    currentEpisode: drama.currentEpisode,
+    manualEpisode: drama.manualEpisode,
+    startDate: drama.startDate,
+    premiereEpisodes: drama.premiereEpisodes,
+    episodesPerDay: drama.episodesPerDay,
+    airDays: drama.airDays,
+    airTime: drama.airTime,
+  })
   if (ep && drama.totalEpisodes) return `第${ep}集/共${drama.totalEpisodes}集`
   if (ep) return `第${ep}集`
   if (drama.totalEpisodes) return `共${drama.totalEpisodes}集`

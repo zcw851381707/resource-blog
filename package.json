@@ -14,6 +14,8 @@
     "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@libsql/client": "^0.8.1",
+    "@prisma/adapter-libsql": "^5.22.0",
     "@prisma/client": "^5.22.0",
     "@resvg/resvg-wasm": "^2.6.2",
     "@tailwindcss/typography": "^0.5.20",
@@ -33,7 +35,7 @@
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "jose": "^6.2.3",
-    "next": "16.2.6",
+    "next": "^16.2.7",
     "next-auth": "^4.24.14",
     "nodemailer": "^7.0.13",
     "prisma": "^5.22.0",

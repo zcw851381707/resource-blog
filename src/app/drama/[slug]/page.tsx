@@ -44,6 +44,35 @@ export default async function DramaDetailPage({ params }: { params: Promise<{ sl
     data: { clickCount: { increment: 1 } },
   }).catch(() => {})
 
+  // 首播日自动过渡：仅首次开播（currentEp=0）触发，不影响后台手动修改的数据
+  if (drama.isUpcoming && drama.expectedDate && (drama.currentEpisode || 0) === 0 && (drama.manualEpisode || 0) === 0) {
+    const expected = new Date(drama.expectedDate)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const expDay = new Date(expected.getFullYear(), expected.getMonth(), expected.getDate())
+    if (expDay <= today) {
+      let ready = true
+      if (drama.airTime) {
+        const [h, m] = drama.airTime.split(':').map(Number)
+        if (!isNaN(h) && !isNaN(m)) {
+          if (now.getHours() * 60 + now.getMinutes() < h * 60 + m) ready = false
+        }
+      }
+      if (ready) {
+        const premEp = premiereEpisodes || (drama.episodesPerDay || 1)
+        prisma.drama.update({
+          where: { id: drama.id },
+          data: {
+            isUpcoming: false,
+            isNewlyAired: true,
+            isOnSchedule: !!drama.airDays,
+            currentEpisode: premEp,
+          },
+        }).catch(() => {})
+      }
+    }
+  }
+
   // 热门推荐（按点击量）
   const [related, settings] = await Promise.all([
     prisma.drama.findMany({

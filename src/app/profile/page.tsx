@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { isUpcomingActive } from '@/lib/drama-schedule'
+import { isUpcomingActive, calcCurrentEpisode } from '@/lib/drama-schedule-utils'
 
 type TabKey = 'info' | 'following' | 'planned' | 'favorites' | 'subscriptions' | 'comments'
 
@@ -23,14 +23,23 @@ interface DramaLite {
   manualEpisode?: number | null
   premiereEpisodes?: number | null
   startDate?: string | null
+  airDays?: string | null
+  airTime?: string | null
+  episodesPerDay?: number | null
 }
 
 const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
 function getAdminEp(d: DramaLite): number {
-  const hasManual = d.manualEpisode != null && d.manualEpisode > 0
-  let ep = hasManual ? d.manualEpisode : d.currentEpisode
-  return ep || 0
+  return calcCurrentEpisode({
+    currentEpisode: d.currentEpisode,
+    manualEpisode: d.manualEpisode,
+    startDate: d.startDate,
+    premiereEpisodes: d.premiereEpisodes,
+    episodesPerDay: d.episodesPerDay,
+    airDays: d.airDays,
+    airTime: d.airTime,
+  })
 }
 
 export default function ProfilePage() {
@@ -59,7 +68,7 @@ export default function ProfilePage() {
         fetch('/api/favorites'),
         fetch('/api/following'),
         fetch('/api/subscriptions'),
-        fetch('/api/comments?page=1&limit=1').then(r => r.json()).catch(() => ({ total: 0 })),
+        fetch('/api/comments?myComments=true&page=1&limit=1').then(r => r.json()).catch(() => ({ total: 0 })),
       ])
       const favData = await favRes.json()
       const follData = await follRes.json()
@@ -783,7 +792,7 @@ function ProfileCommentsList({ onChange }: { onChange: () => void }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/comments?page=1&limit=10')
+      const res = await fetch('/api/comments?myComments=true&page=1&limit=10')
       const data = await res.json()
       setItems(data.items || [])
     } catch { /* ignore */ }

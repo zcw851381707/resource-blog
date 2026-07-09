@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ClientShell from "@/components/ClientShell";
 
+export const runtime = 'nodejs';
+
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
   description: '最新电视剧资源一站式导航。追剧日历、网盘资源、剧集推荐，每日更新热门泰剧韩剧日剧国产剧。',
   keywords: ['追剧', '日历', '资源', '泰剧', '韩剧', '日剧', '国产剧', '网盘', '下载', '晨光曦'],
   authors: [{ name: '晨光曦·分享站' }],
-  robots: { index: true, follow: true },
+  robots: { index: false, follow: false },
   openGraph: {
     title: '晨光曦·分享站 — 追剧日历、资源分享',
     description: '最新电视剧资源一站式导航。追剧日历、网盘资源、剧集推荐，每日更新。',

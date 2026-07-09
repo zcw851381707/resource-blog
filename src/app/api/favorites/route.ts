@@ -35,6 +35,9 @@ export async function GET() {
       manualEpisode: true,
       premiereEpisodes: true,
       startDate: true,
+      airDays: true,
+      airTime: true,
+      episodesPerDay: true,
     },
   })
 

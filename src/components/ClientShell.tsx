@@ -4,7 +4,6 @@ import { AuthProvider } from '@/lib/auth-context'
 import AuthGate from './AuthGate'
 import VisitTracker from './VisitTracker'
 
-import PullToRefresh from './PullToRefresh'
 import { SiteHeader, SiteFooter, SiteMobileNav } from './SiteChrome'
 import { usePathname } from 'next/navigation'
 
@@ -19,15 +18,11 @@ export default function ClientShell({ children }: { children: React.ReactNode })
       {isAdmin ? (
         <>{children}</>
       ) : isPublic ? (
-        <main className="flex-1 pb-2 md:pb-0">
-          <PullToRefresh>{children}</PullToRefresh>
-        </main>
+        <main className="flex-1 pb-2 md:pb-0">{children}</main>
       ) : (
         <AuthGate>
           <SiteHeader />
-          <main className="flex-1 pb-2 md:pb-0">
-            <PullToRefresh>{children}</PullToRefresh>
-          </main>
+          <main className="flex-1 pb-2 md:pb-0">{children}</main>
           <SiteMobileNav />
           <SiteFooter />
         </AuthGate>

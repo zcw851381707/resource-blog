@@ -68,13 +68,27 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   } = body
 
   // 更换封面/日程图时，删除旧的上传文件（除非旧封面已挪入剧照仍在引用）
-  const oldDrama = await prisma.drama.findUnique({ where: { id }, select: { coverImage: true, isCompleted: true, scheduleImage: true } })
+  const oldDrama = await prisma.drama.findUnique({
+    where: { id },
+    select: { coverImage: true, isCompleted: true, scheduleImage: true, galleryImages: true },
+  })
   const newGallery: string[] = Array.isArray(body.galleryImages) ? body.galleryImages : []
   if (oldDrama?.coverImage && oldDrama.coverImage !== coverImage && !newGallery.includes(oldDrama.coverImage)) {
     await deleteCoverFile(oldDrama.coverImage)
   }
   if (oldDrama?.scheduleImage && oldDrama.scheduleImage !== body.scheduleImage) {
     await deleteCoverFile(oldDrama.scheduleImage)
+  }
+  // 清理已从剧照中移除的旧图片
+  if (oldDrama?.galleryImages) {
+    try {
+      const oldGallery = JSON.parse(oldDrama.galleryImages) as string[]
+      for (const oldUrl of oldGallery) {
+        if (!newGallery.includes(oldUrl)) {
+          await deleteCoverFile(oldUrl)
+        }
+      }
+    } catch {}
   }
 
   // 自动管理完成状态：当前集数 >= 总集数 → 自动完结
@@ -168,9 +182,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await requireAuth()
   const { id } = await params
-  const drama = await prisma.drama.findUnique({ where: { id }, select: { coverImage: true, scheduleImage: true } })
+  const drama = await prisma.drama.findUnique({ where: { id }, select: { coverImage: true, scheduleImage: true, galleryImages: true } })
   if (drama?.coverImage) await deleteCoverFile(drama.coverImage)
   if (drama?.scheduleImage) await deleteCoverFile(drama.scheduleImage)
+  // 同时也清理剧照图片
+  if (drama?.galleryImages) {
+    try {
+      const urls = JSON.parse(drama.galleryImages) as string[]
+      for (const url of urls) await deleteCoverFile(url)
+    } catch {}
+  }
   await prisma.drama.delete({ where: { id } })
   return NextResponse.json({ success: true })
 }

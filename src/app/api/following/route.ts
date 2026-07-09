@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       startDate: true,
       airDays: true,
       airTime: true,
+      episodesPerDay: true,
     },
   })
 

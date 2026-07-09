@@ -10,10 +10,12 @@ import ScrollReveal from '@/components/ScrollReveal'
 import FullRowGrid from '@/components/FullRowGrid'
 import HorizontalSlider from '@/components/HorizontalSlider'
 import Link from 'next/link'
-import { buildWeeklySchedule, hydrateDramaDisplayFields, isNewlyAiredActive, isUpcomingActive } from '@/lib/drama-schedule'
+import { buildWeeklySchedule, hydrateDramaDisplayFields, isNewlyAiredActive, isUpcomingActive, isRecentlyCompleted } from '@/lib/drama-schedule'
+
+export const dynamic = 'force-dynamic'
 
 const regions = [
-  { key: '中国', label: '中国', includes: ['中国', '中国台湾', '中国香港', '中国澳门'] },
+  { key: '华语剧', label: '华语剧', includes: ['中国', '中国台湾', '中国香港', '中国澳门'] },
   { key: '泰国', label: '泰剧', includes: ['泰国'] },
   { key: '韩国', label: '韩剧', includes: ['韩国'] },
   { key: '日本', label: '日剧', includes: ['日本'] },
@@ -79,50 +81,41 @@ export default async function Home() {
   // 地区分组
   const regionData: Record<string, typeof allDramas> = {}
   for (const r of regions) {
-    const now = new Date()
-    const todayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
-
     regionData[r.key] = allDramas
       .filter(d => {
         const dramaRegions = (d.region || '').split(',').filter(Boolean)
         return dramaRegions.some(rr => r.includes.includes(rr))
       })
       .sort((a, b) => {
-        const aHasSchedule = a.isOnSchedule && a.airDays && a.airTime &&
-          a.airDays.split(',').map(x => x.trim()).includes(String(todayIdx))
-        const bHasSchedule = b.isOnSchedule && b.airDays && b.airTime &&
-          b.airDays.split(',').map(x => x.trim()).includes(String(todayIdx))
-
-        // 两部今天都不播 → sortOrder（小在前）→ 热度
-        if (!aHasSchedule && !bHasSchedule) {
-          return (a.sortOrder || 0) - (b.sortOrder || 0) || (b.clickCount || 0) - (a.clickCount || 0)
+        // 按标签优先级排序：
+        //   0 = 新播（绿色标签）
+        //   1 = 追剧中（蓝色标签）
+        //   2 = 即将上线（橙色标签）
+        //   3 = 已完结（灰色标签）
+        //   4 = 无任何标签
+        const getStatus = (d: typeof a): number => {
+          if (isNewlyAiredActive(d)) return 0   // 新播
+          const isOnAir = d.isOnSchedule || isNewlyAiredActive(d)
+          if (isOnAir && !d.isCompleted && !isUpcomingActive(d)) return 1  // 追剧中
+          if (isUpcomingActive(d)) return 2                              // 即将上线
+          if (isRecentlyCompleted(d)) return 3                          // 已完结
+          return 4                                                       // 无标签
         }
-        // 一部今天播 → 排前面
-        if (aHasSchedule && !bHasSchedule) return -1
-        if (!aHasSchedule && bHasSchedule) return 1
 
-        // 两部今天都播 → 按播出时间排序
-        const [ah, am] = a.airTime!.split(':').map(Number)
-        const [bh, bm] = b.airTime!.split(':').map(Number)
-        const aMins = ah * 60 + am
-        const bMins = bh * 60 + bm
-        const aDiff = aMins - currentMinutes
-        const bDiff = bMins - currentMinutes
+        const aStatus = getStatus(a)
+        const bStatus = getStatus(b)
 
-        const aInWindow = aDiff >= 0 && aDiff <= 10   // 播出前 10 分钟内
-        const bInWindow = bDiff >= 0 && bDiff <= 10
+        // 不同状态：按 0 > 1 > 2 > 3 > 4
+        if (aStatus !== bStatus) return aStatus - bStatus
 
-        if (aInWindow && bInWindow) return aDiff - bDiff     // 都进入窗口：谁先播谁排前
-        if (aInWindow) return -1                              // a 进入窗口
-        if (bInWindow) return 1                               // b 进入窗口
-
-        // 都还没到窗口：未播的排在已播的前面
-        if (aDiff >= 0 && bDiff >= 0) return aDiff - bDiff    // 都未播：先播的排前
-        if (aDiff >= 0) return -1                             // a 未播 b 已播
-        if (bDiff >= 0) return 1                              // b 未播 a 已播
-
-        // 都已经播过 → sortOrder（小在前）→ 热度
+        // 同状态下细分排序：
+        // - 状态 3/4（已完结 + 无标签）：按 updatedAt 倒序（新更新的在前）
+        // - 状态 0/1/2：保持原有 sortOrder → clickCount 顺序
+        if (aStatus >= 3 && bStatus >= 3) {
+          const aTime = new Date(a.updatedAt).getTime()
+          const bTime = new Date(b.updatedAt).getTime()
+          if (aTime !== bTime) return bTime - aTime
+        }
         return (a.sortOrder || 0) - (b.sortOrder || 0) || (b.clickCount || 0) - (a.clickCount || 0)
       })
       .slice(0, 10)

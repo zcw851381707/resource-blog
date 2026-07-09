@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import DramaGrid from '@/components/DramaGrid'
 import ShareModal from '@/components/ShareModal'
-import { isNewlyAiredActive, isRecentlyCompleted, isUpcomingActive, calcCurrentEpisode } from '@/lib/drama-schedule'
+import { isNewlyAiredActive, isRecentlyCompleted, isUpcomingActive, calcCurrentEpisode } from '@/lib/drama-schedule-utils'
 import { useAuth } from '@/lib/auth-context'
 
 interface DramaInfo {
@@ -97,9 +97,7 @@ function getEpisodeLabel(d: DramaInfo): string {
     if (d.totalEpisodes) return `全${d.totalEpisodes}集`
     return '已完结'
   }
-  // 集数：手动指定优先（0 视为未设置），否则按首播日期 + 播出日 + 集数规则自动计算
-  const hasManual = d.manualEpisode != null && d.manualEpisode > 0
-  let ep = hasManual ? d.manualEpisode : calcCurrentEpisode({
+  const ep = calcCurrentEpisode({
     currentEpisode: d.currentEpisode,
     manualEpisode: d.manualEpisode,
     startDate: d.startDate,
@@ -210,6 +208,11 @@ export default function DramaDetailClient({
     }
     setCaptchaLoading(false)
   }
+  // airDays 为空时从 startDate 推导
+  const effectiveAirDays = drama.airDays || (drama.startDate ? String((() => {
+    const d = new Date(drama.startDate)
+    return d.getDay() === 0 ? 6 : d.getDay() - 1
+  })()) : null)
   const epLabel = getEpisodeLabel(drama)
   const showUpcoming = isUpcomingActive(drama)
   const videoPlatform = drama.videoUrl ? getVideoPlatform(drama.videoUrl) : null
@@ -466,50 +469,49 @@ export default function DramaDetailClient({
           )}
         </div>
 
-        {/* 中栏：信息 */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-2 mb-1">
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">{drama.title || drama.originalTitle}</h1>
-            <button
-              type="button"
-              onClick={() => setShowShare(true)}
-              className="shrink-0 mt-1 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
-              title="分享"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
-              </svg>
-              分享
-            </button>
-          </div>
-          {drama.originalTitle && drama.title && (
-            <p className="text-sm text-[var(--text-muted)] mb-3">{drama.originalTitle}</p>
-          )}
-
-          {/* 季数切换 */}
-          {(seasons.length > 0 || (drama.seriesOrder != null && drama.seriesOrder > 0)) && (
-            <div className="flex items-center gap-1.5 mb-4">
-              {[
-                { slug: drama.slug, seriesOrder: drama.seriesOrder || 1, isCurrent: true },
-                ...seasons.map(s => ({ ...s, isCurrent: false })),
-              ].sort((a, b) => a.seriesOrder - b.seriesOrder).map(s => (
-                <Link
-                  key={s.slug}
-                  href={`/drama/${s.slug}`}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all active:scale-95 ${
-                    s.isCurrent
-                      ? 'bg-[var(--brand)] text-white'
-                      : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--brand-pale)] hover:text-[var(--brand)]'
-                  }`}
-                >
-                  第{s.seriesOrder}季
-                </Link>
-              ))}
+          {/* 中栏：信息 */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-2 mb-1">
+              <h1 className="text-2xl font-bold text-[var(--text-primary)]">{drama.title || drama.originalTitle}</h1>
+              {(seasons.length > 0 || (drama.seriesOrder != null && drama.seriesOrder > 0)) && (
+                <div className="flex items-center gap-1.5 shrink-0 mt-1">
+                  {[
+                    { slug: drama.slug, seriesOrder: drama.seriesOrder || 1, isCurrent: true },
+                    ...seasons.map(s => ({ ...s, isCurrent: false })),
+                  ].sort((a, b) => a.seriesOrder - b.seriesOrder).map(s => (
+                    <Link
+                      key={s.slug}
+                      href={`/drama/${s.slug}`}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all active:scale-95 ${
+                        s.isCurrent
+                          ? 'bg-[var(--brand)] text-white'
+                          : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--brand-pale)] hover:text-[var(--brand)]'
+                      }`}
+                    >
+                      第{s.seriesOrder}季
+                    </Link>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowShare(true)}
+                className="shrink-0 mt-1 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-all"
+                title="分享"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                </svg>
+                分享
+              </button>
             </div>
-          )}
+            {drama.originalTitle && drama.title && (
+              <p className="text-sm text-[var(--text-muted)] mb-3">{drama.originalTitle}</p>
+            )}
 
-          {/* 标签 */}
-          <div className="flex flex-wrap gap-2 mb-5">
+
+            {/* 标签 */}
+            <div className="flex flex-wrap gap-2 mb-5">
             {(drama.region || '').split(',').filter(Boolean).map(r => (
               <span key={r} className="px-3 py-1 rounded-full text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)]">{r}</span>
             ))}
@@ -559,11 +561,11 @@ export default function DramaDetailClient({
                 )
               ) : (
                 <>
-                  {drama.airDays && (
+                  {effectiveAirDays && (
                     <div className="flex items-start gap-3">
                       <span className="text-xs text-[var(--text-muted)] w-16 shrink-0 pt-0.5">更新日</span>
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {drama.airDays.split(',').map(d => (
+                        {effectiveAirDays.split(',').map(d => (
                           <span key={d} className="px-2 py-0.5 rounded text-xs bg-[var(--brand-bg)] text-[var(--brand)] font-medium">
                             {dayNames[parseInt(d)]}
                           </span>
@@ -587,17 +589,11 @@ export default function DramaDetailClient({
             dramaId={drama.id}
             isUpcoming={showUpcoming}
             totalEpisodes={drama.totalEpisodes}
-            currentEp={(() => {
-              return calcCurrentEpisode({
-                currentEpisode: drama.currentEpisode,
-                manualEpisode: drama.manualEpisode,
-                startDate: drama.startDate,
-                premiereEpisodes: drama.premiereEpisodes,
-                episodesPerDay: drama.episodesPerDay,
-                airDays: drama.airDays,
-                airTime: drama.airTime,
-              })
-            })()}
+            currentEp={
+              (drama.manualEpisode != null && drama.manualEpisode > 0)
+                ? drama.manualEpisode
+                : (drama.currentEpisode || 0)
+            }
           />
 
           {/* 简介 */}
@@ -625,11 +621,11 @@ export default function DramaDetailClient({
                 <h3 className="text-sm font-semibold text-[var(--text-primary)]">播出日历</h3>
               </div>
               <div
-                className={`relative bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-secondary)] rounded-2xl overflow-hidden transition-all hover:shadow-lg hover:shadow-[var(--brand)]/10`}
+                className={`relative bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-secondary)] rounded-2xl transition-all hover:shadow-lg hover:shadow-[var(--brand)]/10 ${expandSchedule ? 'overflow-visible' : 'overflow-hidden'}`}
                 onClick={() => setExpandSchedule(!expandSchedule)}
               >
-                <div className={`overflow-hidden transition-[max-height] duration-500 ease-in-out`}
-                  style={{ maxHeight: expandSchedule ? (scheduleImgHeight || 9999) : 200 }}
+                <div className={`transition-[max-height] duration-500 ease-in-out`}
+                  style={{ maxHeight: expandSchedule ? (scheduleImgHeight || 9999) : 200, overflow: expandSchedule ? 'visible' : 'hidden' }}
                   onTransitionEnd={() => setScheduleAnimating(false)}
                 >
                   <img
@@ -640,7 +636,7 @@ export default function DramaDetailClient({
                     onLoad={(e) => {
                     const img = e.currentTarget
                     const ratio = img.naturalWidth > 0 ? img.naturalHeight / img.naturalWidth : 1
-                    setScheduleImgHeight(Math.round(img.offsetWidth * ratio))
+                    setScheduleImgHeight(Math.round(img.getBoundingClientRect().width * ratio))
                   }}
                   />
                 </div>
@@ -1147,7 +1143,7 @@ function InteractionBar({ dramaId, isUpcoming, totalEpisodes, currentEp }: { dra
       )}
 
       {/* 进度标记按钮 — 已开播且有总集数时显示 */}
-      {!isUpcoming && totalEpisodes && totalEpisodes > 0 && (
+      {!isUpcoming && (totalEpisodes ?? 0) > 0 && (
         <div className="relative">
           <button
             onClick={(e) => { e.stopPropagation(); setProgressOpen(!progressOpen) }}
@@ -1163,7 +1159,7 @@ function InteractionBar({ dramaId, isUpcoming, totalEpisodes, currentEp }: { dra
             <div className="absolute left-0 top-full mt-1 z-20 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg p-2 min-w-[160px]">
               <p className="text-[10px] text-[var(--text-muted)] mb-1.5">标记看到第几集（自动追剧）</p>
               <div className="grid grid-cols-5 gap-1">
-                {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map(ep => (
+                {Array.from({ length: totalEpisodes ?? 0 }, (_, i) => i + 1).map(ep => (
                   <button
                     key={ep}
                     onClick={() => setEp(ep)}
@@ -1213,6 +1209,15 @@ function RatingSection({ dramaId }: { dramaId: string }) {
   const [showScore, setShowScore] = useState(false)
   const [hoverScore, setHoverScore] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [canRate, setCanRate] = useState(false)
+  const [updateCount, setUpdateCount] = useState(0)
+  const [remainingUpdates, setRemainingUpdates] = useState(3)
+  const [confirmScore, setConfirmScore] = useState<number | null>(null) // 待确认的修改评分
+  const [ratingError, setRatingError] = useState<string | null>(null)
+  const [ratingSubmitting, setRatingSubmitting] = useState(false)
+
+  // 1~5 星对应的评语（鼠标悬停时显示）
+  const STAR_LABELS = ['如坐针毡', '昏昏欲睡', '波澜不惊', '全程高能', '直击灵魂']
 
   const load = (force = false) => {
     const id = ++loadIdRef.current
@@ -1226,7 +1231,10 @@ function RatingSection({ dramaId }: { dramaId: string }) {
         setCount(data.count || 0)
         setDistribution(data.distribution || [0, 0, 0, 0, 0])
         setMyScore(data.myRating || null)
+        setUpdateCount(data.updateCount ?? 0)
+        setRemainingUpdates(data.remainingUpdates ?? 3)
         setShowScore(!!data.showScore)
+        setCanRate(!!data.canRate)
       })
       .catch(() => {})
       .finally(() => {
@@ -1237,14 +1245,30 @@ function RatingSection({ dramaId }: { dramaId: string }) {
   useEffect(() => { load() }, [dramaId])
 
   const rate = async (score: number) => {
-    if (!user) return
-    await fetch('/api/ratings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dramaId, score }),
-    })
-    setMyScore(score)
-    load(true) // force = true 不闪 loading
+    if (!user || ratingSubmitting) return
+    setRatingSubmitting(true)
+    setRatingError(null)
+    setConfirmScore(null)
+    try {
+      const res = await fetch('/api/ratings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dramaId, score }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setRatingError(data.error || '评分失败')
+        setRatingSubmitting(false)
+        return
+      }
+      setMyScore(score)
+      setUpdateCount(data.updateCount ?? 0)
+      setRemainingUpdates(data.remainingUpdates ?? 0)
+      load(true) // force = true 不闪 loading
+    } catch {
+      setRatingError('评分失败，请检查网络')
+    }
+    setRatingSubmitting(false)
   }
 
   // 百分比计算
@@ -1290,26 +1314,43 @@ function RatingSection({ dramaId }: { dramaId: string }) {
                 const displayScore = hoverScore > 0 ? hoverScore : avgRating
                 const filled = displayScore >= star - 0.25
                 const half = !filled && displayScore >= star - 0.75
+                const rateable = user && canRate
                 return (
                   <button
                     key={star}
-                    onClick={() => rate(star)}
-                    onMouseEnter={() => user && !myScore && setHoverScore(star)}
+                    onClick={() => {
+                      if (!rateable) return
+                      if (remainingUpdates <= 0 && myScore != null) return // 已达修改上限
+                      if (myScore != null) {
+                        setConfirmScore(star) // 已有评分，弹出确认
+                      } else {
+                        rate(star)
+                      }
+                    }}
+                    onMouseEnter={() => rateable && !confirmScore && !myScore && setHoverScore(star)}
                     onMouseLeave={() => setHoverScore(0)}
-                    className={`text-lg transition-all duration-150 ${user ? 'cursor-pointer hover:scale-125' : 'cursor-default'} ${
+                    className={`text-lg transition-all duration-150 ${rateable ? 'cursor-pointer hover:scale-125' : 'cursor-not-allowed opacity-60'} ${
                       filled || half ? 'text-[#FFB940]' : 'text-[var(--border)]'
                     }`}
-                    title={user ? `评 ${star} 星` : '登录后可评分'}
+                    title={!user ? '登录后可评分' : remainingUpdates <= 0 && myScore != null ? '修改次数已达上限' : `评 ${star} 星`}
                   >
                     {half ? '★' : filled ? '★' : '☆'}
                   </button>
                 )
               })}
             </div>
-            <div className="text-[10px] text-[var(--text-muted)]">
-              {user
-                ? (myScore ? `你评了 ${myScore} 星 · 点击可修改` : '点击星星评分')
-                : '登录后可评分'}
+            <div className="text-[10px] text-[var(--text-muted)] h-3 leading-3">
+              {!user
+                ? '登录后可评分'
+                : myScore
+                    ? (hoverScore > 0
+                        ? STAR_LABELS[hoverScore - 1]
+                        : remainingUpdates > 0
+                          ? `你评了 ${myScore} 星 · ${STAR_LABELS[myScore - 1]} · 还可修改 ${remainingUpdates} 次`
+                          : `你评了 ${myScore} 星 · ${STAR_LABELS[myScore - 1]} · 修改次数已达上限`)
+                    : (hoverScore > 0
+                        ? STAR_LABELS[hoverScore - 1]
+                        : '点击星星评分')}
             </div>
           </div>
 
@@ -1332,6 +1373,50 @@ function RatingSection({ dramaId }: { dramaId: string }) {
           )}
         </div>
       </div>
+
+      {/* 评分错误提示 */}
+      {ratingError && (
+        <div className="mt-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">
+          {ratingError}
+        </div>
+      )}
+
+      {/* 修改评分确认弹窗 */}
+      {confirmScore != null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setConfirmScore(null)}>
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-4">
+              <div className="text-lg mb-1">
+                {[1, 2, 3, 4, 5].map(s => (
+                  <span key={s} className={s <= confirmScore ? 'text-[#FFB940]' : 'text-gray-200'}>{'★'}</span>
+                ))}
+              </div>
+              <p className="text-sm font-medium text-gray-700">修改评分</p>
+              <p className="text-xs text-gray-500 mt-1">
+                你还有 <span className="text-[var(--brand)] font-bold">{remainingUpdates}</span> 次修改机会
+                {remainingUpdates === 1 ? '（最后一次）' : ''}，确定要修改吗？
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmScore(null)}
+                className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-500 text-sm font-medium hover:bg-gray-200 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => rate(confirmScore)}
+                disabled={ratingSubmitting}
+                className="flex-1 py-2 rounded-lg bg-[var(--brand)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-all"
+              >
+                {ratingSubmitting ? '提交中...' : '确定'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1343,6 +1428,7 @@ interface CommentItem {
   createdAt: string
   isMine: boolean
   isAdmin: boolean
+  isFirstComment?: boolean
   user: { username: string; avatar: string | null }
   likeCount: number
   replyCount: number
@@ -1366,10 +1452,14 @@ function CommentSection({ dramaId }: { dramaId: string }) {
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null)
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
   const [showAllComments, setShowAllComments] = useState(false)
+  const [canComment, setCanComment] = useState(false)
+  const [commentHint, setCommentHint] = useState('')
+  const [commentLoading, setCommentLoading] = useState(true)
   const COMMENTS_PER_PAGE_DISPLAY = 20  // 一页展示的评论数（>20折叠）
   const REPLIES_PREVIEW = 1              // 每条评论默认展开的回复数
 
   const load = (p = page) => {
+    setCommentLoading(true)
     fetch(`/api/comments?dramaId=${dramaId}&page=${p}&limit=10`)
       .then(r => r.json())
       .then(data => {
@@ -1377,14 +1467,17 @@ function CommentSection({ dramaId }: { dramaId: string }) {
         setTotal(data.total || 0)
         setPage(data.page || 1)
         setTotalPages(data.totalPages || 1)
+        setCanComment(!!data.canComment)
+        setCommentHint(data.commentHint || '')
       })
       .catch(() => {})
+      .finally(() => setCommentLoading(false))
   }
 
   useEffect(() => { load(1) }, [dramaId])
 
   const submit = async () => {
-    if (!user || !input.trim() || submitting) return
+    if (!user || !input.trim() || submitting || !canComment) return
     setSubmitting(true)
     const body: Record<string, unknown> = { dramaId, content: input.trim() }
     if (replyTo) {
@@ -1406,6 +1499,9 @@ function CommentSection({ dramaId }: { dramaId: string }) {
         setTimeout(() => setModerationMsg(''), 5000)
       }
       load(1)
+    } else if (data.error) {
+      setModerationMsg(data.error)
+      setTimeout(() => setModerationMsg(''), 5000)
     }
   }
 
@@ -1487,6 +1583,9 @@ function CommentSection({ dramaId }: { dramaId: string }) {
         {/* 第一行：用户名 + 时间 + 我的 + 操作按钮 */}
         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
           <span className="text-xs font-medium text-[var(--text-primary)]">{c.user.username}</span>
+          {c.isFirstComment && (
+            <span className="px-1.5 py-0.5 rounded bg-gradient-to-r from-[var(--brand)] to-pink-500 text-white text-[9px] font-bold">首评</span>
+          )}
           {c.pinned && (
             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold" title="管理员精选置顶">
               <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
@@ -1512,7 +1611,7 @@ function CommentSection({ dramaId }: { dramaId: string }) {
           </button>
 
           {/* 回复按钮（顶级评论才显示） */}
-          {!isReply && user && (
+          {!isReply && user && canComment && (
             <button
               onClick={() => setReplyTo({ id: c.id, username: c.user.username })}
               title="回复"
@@ -1574,33 +1673,39 @@ function CommentSection({ dramaId }: { dramaId: string }) {
       )}
 
       {/* 输入框 */}
-      {user ? (
-        <div className="mb-4">
-          {replyTo && (
-            <div className="flex items-center gap-2 mb-1.5 px-3 py-1.5 rounded-t-lg bg-[var(--brand-bg)] border border-[var(--brand-pale)] border-b-0 text-xs">
-              <span className="text-[var(--text-secondary)]">回复 <span className="text-[var(--brand)] font-medium">@{replyTo.username}</span></span>
-              <button onClick={() => setReplyTo(null)} className="ml-auto text-[var(--text-muted)] hover:text-[var(--danger)]">✕</button>
+      {commentLoading ? null : user ? (
+        canComment ? (
+          <div className="mb-4">
+            {replyTo && (
+              <div className="flex items-center gap-2 mb-1.5 px-3 py-1.5 rounded-t-lg bg-[var(--brand-bg)] border border-[var(--brand-pale)] border-b-0 text-xs">
+                <span className="text-[var(--text-secondary)]">回复 <span className="text-[var(--brand)] font-medium">@{replyTo.username}</span></span>
+                <button onClick={() => setReplyTo(null)} className="ml-auto text-[var(--text-muted)] hover:text-[var(--danger)]">✕</button>
+              </div>
+            )}
+            <textarea
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              maxLength={500}
+              placeholder={replyTo ? `回复 @${replyTo.username}...` : '写下你对这部剧的短评...'}
+              rows={2}
+              className={`w-full text-sm px-3 py-2 border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] outline-none focus:border-[var(--brand)] resize-none ${replyTo ? 'rounded-b-lg' : 'rounded-lg'}`}
+            />
+            <div className="flex items-center justify-between mt-1.5">
+              <span className="text-[10px] text-[var(--text-muted)]">{input.length}/500</span>
+              <button
+                onClick={submit}
+                disabled={!input.trim() || submitting}
+                className="px-4 py-1.5 rounded-full bg-[var(--brand)] text-white text-xs font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                {submitting ? '发表中...' : (replyTo ? '回复' : '发表')}
+              </button>
             </div>
-          )}
-          <textarea
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            maxLength={500}
-            placeholder={replyTo ? `回复 @${replyTo.username}...` : '写下你对这部剧的短评...'}
-            rows={2}
-            className={`w-full text-sm px-3 py-2 border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] outline-none focus:border-[var(--brand)] resize-none ${replyTo ? 'rounded-b-lg' : 'rounded-lg'}`}
-          />
-          <div className="flex items-center justify-between mt-1.5">
-            <span className="text-[10px] text-[var(--text-muted)]">{input.length}/500</span>
-            <button
-              onClick={submit}
-              disabled={!input.trim() || submitting}
-              className="px-4 py-1.5 rounded-full bg-[var(--brand)] text-white text-xs font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              {submitting ? '发表中...' : (replyTo ? '回复' : '发表')}
-            </button>
           </div>
-        </div>
+        ) : (
+          <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-3 text-center text-xs text-[var(--text-muted)]">
+            {commentHint || '开播后可评论'}
+          </div>
+        )
       ) : (
         <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-3 text-center text-xs text-[var(--text-muted)]">
           登录后即可发表评论

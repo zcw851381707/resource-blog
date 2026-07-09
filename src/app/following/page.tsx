@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { isUpcomingActive } from '@/lib/drama-schedule'
+import { isUpcomingActive, calcCurrentEpisode } from '@/lib/drama-schedule-utils'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -26,6 +26,7 @@ interface DramaLite {
   startDate?: string | null
   airDays?: string | null
   airTime?: string | null
+  episodesPerDay?: number | null
 }
 
 interface FollowItem {
@@ -48,9 +49,15 @@ const STATUS_LABELS: Record<FollowItem['status'], string> = {
 const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
 function getAdminEp(d: DramaLite): number {
-  const hasManual = d.manualEpisode != null && d.manualEpisode > 0
-  let ep = hasManual ? d.manualEpisode : d.currentEpisode
-  return ep || 0
+  return calcCurrentEpisode({
+    currentEpisode: d.currentEpisode,
+    manualEpisode: d.manualEpisode,
+    startDate: d.startDate,
+    premiereEpisodes: d.premiereEpisodes,
+    episodesPerDay: d.episodesPerDay,
+    airDays: d.airDays,
+    airTime: d.airTime,
+  })
 }
 
 // 判断追剧剧集是否"有更新"（管理员集数 > 用户记录集数，且未完结）

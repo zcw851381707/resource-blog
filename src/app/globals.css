@@ -61,6 +61,8 @@
   --color-brand-bg: #FFF8F5;
   --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
   --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
+  /* iPad 任何尺寸都跟手机同布局，只在 >=1024px 才走桌面布局 */
+  --breakpoint-md: 64rem;
 }
 
 :root {
@@ -115,6 +117,8 @@ body {
   background: var(--bg);
   color: var(--text-primary);
   font-family: "PingFang SC", "苹方", -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
+  /* 防止首页文章轮播等溢出导致整页横向滚动 */
+  overflow-x: hidden;
 }
 
 /* 移动端输入框防止 iOS 自动放大 */
@@ -133,6 +137,11 @@ body {
     margin-top: calc(-1 * env(safe-area-inset-top));
     padding-top: env(safe-area-inset-top);
   }
+}
+
+html {
+  /* 配合 body 的 overflow-x:hidden，双保险 */
+  overflow-x: hidden;
 }
 
 /* 滚动条样式 */
@@ -330,4 +339,20 @@ body {
 @keyframes carouselCardIn {
   from { opacity: 0; transform: translateY(8px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 登录页泡泡动画 */
+@keyframes floatBubble {
+  0%   { transform: translate(0, 100vh) scale(0.5); opacity: 0; }
+  8%   { opacity: 1; }
+  50%  { transform: translate(60px, 50vh) scale(1); }
+  92%  { opacity: 1; }
+  100% { transform: translate(-50px, -100px) scale(0.7); opacity: 0; }
+}
+@keyframes floatBubbleAlt {
+  0%   { transform: translate(0, 100vh) scale(0.4); opacity: 0; }
+  8%   { opacity: 0.95; }
+  50%  { transform: translate(-80px, 50vh) scale(0.95); }
+  92%  { opacity: 0.95; }
+  100% { transform: translate(60px, -100px) scale(0.6); opacity: 0; }
 }
