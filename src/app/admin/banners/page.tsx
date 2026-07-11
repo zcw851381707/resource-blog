@@ -22,6 +22,7 @@ interface Banner {
   isAd?: boolean
   adLabel?: string | null
   portraitImages?: string | null
+  titleFont?: string | null
   sortOrder: number
   isActive: boolean
   dramaId?: string | null
@@ -110,7 +111,7 @@ export default function AdminBanners() {
     videoUrl: '', videoPoster: '', videoDuration: 0,
     gradientFrom: '#D47060', gradientTo: '#E89080',
     buttonLink: '', bannerLink: '', showButton: false, buttonText: '查看详情', isPortrait: false, portraitImages: '',
-    isAd: false, adLabel: '',
+    isAd: false, adLabel: '', titleFont: '',
     sortOrder: 0, isActive: true,
     dramaId: '', description: '', imagePosition: 'center',
   })
@@ -231,6 +232,7 @@ export default function AdminBanners() {
           isPortrait: form.isPortrait ?? false,
           isAd: form.isAd ?? false,
           adLabel: form.isAd ? (form.adLabel?.trim() || null) : null,
+          titleFont: form.titleFont || null,
           portraitImages: form.portraitImages || null,
           mediaType: form.mediaType,
           videoUrl: form.videoUrl || null,
@@ -261,7 +263,7 @@ export default function AdminBanners() {
       videoUrl: '', videoPoster: '', videoDuration: 0,
       gradientFrom: '#D47060', gradientTo: '#E89080',
       buttonLink: '', bannerLink: '', showButton: false, buttonText: '查看详情', isPortrait: false, portraitImages: '',
-      isAd: false, adLabel: '',
+      isAd: false, adLabel: '', titleFont: '',
       sortOrder: 0, isActive: true,
       dramaId: '', description: '', imagePosition: 'center',
     })
@@ -277,7 +279,7 @@ export default function AdminBanners() {
       videoUrl: b.videoUrl || '', videoPoster: b.videoPoster || '', videoDuration: b.videoDuration || 0,
       gradientFrom: b.gradientFrom, gradientTo: b.gradientTo,
       buttonLink: b.buttonLink || '', bannerLink: b.bannerLink || '', showButton: b.showButton || false, buttonText: b.buttonText || '查看详情', isPortrait: b.isPortrait || false, portraitImages: b.portraitImages || '',
-      isAd: b.isAd || false, adLabel: b.adLabel || '',
+      isAd: b.isAd || false, adLabel: b.adLabel || '', titleFont: b.titleFont || '',
       sortOrder: b.sortOrder, isActive: b.isActive,
       dramaId: b.dramaId || '', description: b.description || '',
       imagePosition: b.imagePosition || 'center',
@@ -292,6 +294,27 @@ export default function AdminBanners() {
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`确定要删除 Banner「${title}」吗？此操作不可撤销`)) return
     await fetch(`/api/banners/${id}`, { method: 'DELETE' })
+    load()
+  }
+
+  // 交换两条 Banner 的 sortOrder 实现上下移动
+  // 序号 = sortOrder 实际值，跟数据库绑定，永久不变（除非交换）
+  // 使用服务端原子交换 API，一步完成，不会脏数据
+  const handleMove = async (bannerId: string, direction: 'up' | 'down') => {
+    try {
+      const res = await fetch('/api/banners/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: bannerId, direction }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+        throw new Error(err.error || `请求失败 (${res.status})`)
+      }
+    } catch (e) {
+      alert('排序失败：' + (e instanceof Error ? e.message : '未知错误') + '\n请刷新页面后重试')
+      return
+    }
     load()
   }
 
@@ -566,6 +589,22 @@ export default function AdminBanners() {
             <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
               className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]"
               placeholder={form.dramaId ? '留空则自动同步剧名' : '例：最新热播资源'} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
+              标题字体
+            </label>
+            <select
+              value={form.titleFont || ''}
+              onChange={e => setForm({ ...form, titleFont: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] text-sm"
+            >
+              <option value="">自动（系统随机分配）</option>
+              <option value="FontTitle-ChenYuluoyan">辰宇落雁体 · 清秀手写</option>
+              <option value="FontTitle-Honglei">鸿雷行书 · 豪放行书</option>
+              <option value="FontTitle-Ximai">喜脉体 · 俏皮美术</option>
+              <option value="FontTitle-XimaiXihuan">喜脉喜欢体 · 圆润可爱</option>
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
@@ -887,18 +926,12 @@ export default function AdminBanners() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">排序</label>
-            <input type="number" value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)]" />
-          </div>
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} className="w-4 h-4 accent-[var(--brand)]" />
-              <span className="text-sm text-[var(--text-secondary)]">启用</span>
-            </label>
-          </div>
+        <div className="mb-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} className="w-4 h-4 accent-[var(--brand)]" />
+            <span className="text-sm font-medium text-[var(--text-secondary)]">启用</span>
+            <span className="text-xs text-[var(--text-muted)]">停用后前台不再展示，列表里仍可管理</span>
+          </label>
         </div>
 
         <div className="flex gap-2">
@@ -924,16 +957,26 @@ export default function AdminBanners() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+              <th className="text-center px-3 py-3 text-sm font-medium text-[var(--text-secondary)] w-14">序号</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-[var(--text-secondary)]">标题</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-[var(--text-secondary)]">关联剧集</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-[var(--text-secondary)]">海报</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-[var(--text-secondary)]">状态</th>
+              <th className="text-center px-3 py-3 text-sm font-medium text-[var(--text-secondary)] w-20">排序</th>
               <th className="text-right px-4 py-3 text-sm font-medium text-[var(--text-secondary)]">操作</th>
             </tr>
           </thead>
           <tbody>
-            {banners.map(b => (
+            {[...banners].sort((a, b) => a.sortOrder - b.sortOrder).map((b, displayIdx) => {
+              // 序号用 sortOrder 实际值（永久位次），不用 displayIdx，确保换了 Banner 也跟数据库
+              const displayNum = b.sortOrder
+              return (
               <tr key={b.id} className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--bg-secondary)] transition-colors">
+                <td className="px-3 py-3 text-center">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[var(--brand-bg)] text-[var(--brand)] text-sm font-bold">
+                    {displayNum}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-sm text-[var(--text-primary)] font-medium">{b.title || '(无标题)'}</td>
                 <td className="px-4 py-3 text-xs text-[var(--text-muted)]">
                   {b.dramaId ? (dramas.find(d => d.id === b.dramaId)?.title || b.dramaId) : '-'}
@@ -952,12 +995,36 @@ export default function AdminBanners() {
                     {b.isActive ? '启用' : '停用'}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-3 py-3 text-center whitespace-nowrap">
+                  {/* 上移下移按钮：垂直堆叠居中 */}
+                  <div className="inline-flex flex-col gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleMove(b.id, 'up')}
+                      disabled={displayIdx === 0}
+                      title="上移"
+                      className="inline-flex items-center justify-center w-7 h-6 rounded text-[var(--text-secondary)] hover:bg-[var(--brand)] hover:text-white disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--text-secondary)] transition-colors cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMove(b.id, 'down')}
+                      disabled={displayIdx === banners.length - 1}
+                      title="下移"
+                      className="inline-flex items-center justify-center w-7 h-6 rounded text-[var(--text-secondary)] hover:bg-[var(--brand)] hover:text-white disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--text-secondary)] transition-colors cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
                   <button onClick={() => handleEdit(b)} className="text-sm text-[var(--brand)] hover:underline mr-3">编辑</button>
                   <button onClick={() => handleDelete(b.id, b.title)} className="text-sm text-red-500 hover:underline">删除</button>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
         {banners.length === 0 && <div className="text-center py-8 text-[var(--text-muted)]">暂无 Banner</div>}

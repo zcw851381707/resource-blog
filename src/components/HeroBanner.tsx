@@ -48,9 +48,10 @@ interface BannerData {
   dramaId?: string | null
   description?: string | null
   imagePosition?: string | null
+  titleFont?: string | null  // 后台手动指定字体，null 则自动分配
 }
 
-// Banner 标题字体池（4款中文字体随机轮换）
+// Banner 标题字体池（4款中文字体）
 const cnFonts = [
   '"FontTitle-ChenYuluoyan", sans-serif',   // 清秀手写体
   '"FontTitle-Honglei", sans-serif',         // 豪放行书
@@ -335,10 +336,14 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
     // 只用 minHeight 则图片按高度缩放、宽度自适应，虽然窄但完整可见
     const isAutoPortrait = !isPortrait && imgRatio !== undefined && imgRatio < 0.85
 
-    // 海报图片样式
+    // 海报图片样式（前台 = 后台）
+    // 三个分支都要加 maxWidth/maxHeight:'none'，否则 Tailwind preflight 的
+    // img{max-width:100%;height:auto} 会把 width:215% 压回 100%、height 覆盖掉
     const posterImgStyle: React.CSSProperties = isPortrait
       ? {
           position: 'absolute',
+          maxWidth: 'none',
+          maxHeight: 'none',
           right: 0,
           top: 0,
           height: '100%',
@@ -350,6 +355,8 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
       ? {
           // 竖图：与后台完全一致，left 定位 + 高度缩放
           position: 'absolute',
+          maxWidth: 'none',
+          maxHeight: 'none',
           left: `${imgLeft}%`,
           top: `${imgTop}%`,
           height: `${imgZoom}%`,
@@ -357,22 +364,28 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
           objectFit: 'contain',
         }
       : {
-          // 横图：width 驱动，height auto 等比例
+          // 横图：width 驱动，height 必须显式算（zoom/imgRatio%），否则 height:auto
+          // 会让浏览器按自然比例算出超高（1609%），结果只看到顶部一小块
+          // ⚠️ objectFit:'contain' + maxWidth/maxHeight:'none' 必加
           position: 'absolute',
+          maxWidth: 'none',
+          maxHeight: 'none',
           width: `${imgZoom}%`,
-          height: 'auto',
+          height: imgRatio ? `${imgZoom / imgRatio}%` : 'auto',
           left: `${imgLeft}%`,
           top: `${imgTop}%`,
+          objectFit: 'contain',
         }
 
     // 竖版海报的渐变遮罩：右侧图片 → 左侧实色底
-    // 自动竖图也是右对齐，用同样的 mask
+    // 横图：objectFit:contain 后图片内容始终占据元素宽度的 33.3%~66.7%（与 zoom 无关）
+    // 渐变从 34% 开始（确保图片边缘处 mask=0 完全透明），到 52% 全黑（18% 过渡区，平缓融入）
     const posterMask = (isPortrait || isAutoPortrait)
       ? 'linear-gradient(to right, transparent 0%, transparent 5%, black 30%, black 100%)'
-      : 'linear-gradient(to right, transparent 0%, transparent 8%, black 35%, black 100%)'
+      : 'linear-gradient(to right, transparent 0%, transparent 34%, black 52%, black 100%)'
     const posterMaskMobile = (isPortrait || isAutoPortrait)
       ? 'linear-gradient(to right, transparent 0%, transparent 5%, black 30%, black 100%)'
-      : 'linear-gradient(to right, transparent 0%, transparent 10%, black 35%, black 100%)'
+      : 'linear-gradient(to right, transparent 0%, transparent 10%, black 70%, black 100%)'
 
     // ========== 视频 Banner ==========
     if (banner.mediaType === 'video' && banner.videoUrl) {
@@ -480,7 +493,7 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
           </div>
           <div className="relative z-10 flex flex-col items-center justify-center text-center py-16 md:py-24 px-6 h-full">
             <h2 className="text-3xl md:text-6xl text-white mb-3 leading-tight"
-              style={{ fontFamily: pickFont(title, banner.id), fontWeight: 400 }}>{title}</h2>
+              style={{ fontFamily: banner.titleFont ? `"${banner.titleFont}", sans-serif` : pickFont(title, banner.id), fontWeight: 400 }}>{title}</h2>
             {banner.subtitle && <p className="text-white/80 text-sm md:text-base mb-6">{banner.subtitle}</p>}
             {banner.showButton && (
               <span className="inline-flex items-center gap-1.5 px-8 py-2.5 bg-white/20 backdrop-blur-sm text-white rounded-full border border-white/30 text-sm font-medium pointer-events-none">
@@ -505,7 +518,7 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
       <>
         {/* 剧名 */}
         <h2 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl text-white mb-2 leading-tight drop-shadow-lg"
-          style={{ fontFamily: pickFont(title, banner.id), fontWeight: 400 }}>
+          style={{ fontFamily: banner.titleFont ? `"${banner.titleFont}", sans-serif` : pickFont(title, banner.id), fontWeight: 400 }}>
           {title}
         </h2>
 
@@ -623,7 +636,7 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
           {/* 左侧：剧名 + 副标题 */}
           <div className="flex-1 min-w-0">
             <h2 className="text-4xl sm:text-5xl text-white leading-tight line-clamp-2 drop-shadow-lg"
-              style={{ fontFamily: pickFont(title, banner.id), fontWeight: 400 }}>
+              style={{ fontFamily: banner.titleFont ? `"${banner.titleFont}", sans-serif` : pickFont(title, banner.id), fontWeight: 400 }}>
               {title}
             </h2>
             {banner.subtitle && (
@@ -687,7 +700,7 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
             ))}
           </div>
         ) : (
-          /* 单张海报 */
+          /* 单张海报：mask 渐变让左边平滑过渡到底色 */
           <img
             src={banner.image!}
             alt={title}
@@ -700,7 +713,7 @@ export default function HeroBanner({ banners, dramas }: { banners: BannerData[];
           />
         )}
 
-        {/* 文字内容（独立图层，左侧实色底上） */}
+        {/* 文字内容（独立图层，左侧在海报主色背景上） */}
         <div
           className="absolute left-0 top-0 bottom-0 flex flex-col justify-center py-6"
           style={{ width: 'min(500px, 48%)', paddingLeft: '5%', paddingRight: '1rem' }}

@@ -129,6 +129,7 @@ model Banner {
   portraitImages String?
   isAd           Boolean  @default(false)
   adLabel        String?  // 自定义标签文字，如"推广"、"广告"、"赞助"
+  titleFont      String?  // 标题字体，null=自动选择
   sortOrder     Int      @default(0)
   isActive      Boolean  @default(true)
   dramaId       String?
