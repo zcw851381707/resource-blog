@@ -10,6 +10,10 @@ import ScrollReveal from '@/components/ScrollReveal'
 import FullRowGrid from '@/components/FullRowGrid'
 import HorizontalSlider from '@/components/HorizontalSlider'
 import Link from 'next/link'
+import TodayUpdates from '@/components/home/TodayUpdates'
+import WeekCompleted from '@/components/home/WeekCompleted'
+import NewDramas from '@/components/home/NewDramas'
+import WeeklyHot from '@/components/home/WeeklyHot'
 import { buildWeeklySchedule, hydrateDramaDisplayFields, isNewlyAiredActive, isUpcomingActive, isRecentlyCompleted } from '@/lib/drama-schedule'
 
 export const dynamic = 'force-dynamic'
@@ -142,6 +146,18 @@ export default async function Home() {
 
       {/* 追剧日历 */}
       <WeeklyCalendar schedule={schedule} />
+
+      {/* 今日更新 */}
+      <TodayUpdates />
+
+      {/* 本周完结 */}
+      <WeekCompleted />
+
+      {/* 最新添加 */}
+      <NewDramas />
+
+      {/* 热播追剧榜 TOP 10 */}
+      <WeeklyHot />
 
       {/* 最新上线 */}
       {activeLatestDramas.length > 0 && (

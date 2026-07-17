@@ -322,6 +322,47 @@ model DramaSubscription {
   @@index([dramaId])
 }
 
+model MonthlyReport {
+  id              String   @id @default(uuid())
+  userId          String
+  year            Int
+  month           Int
+  totalEpisodes   Int      @default(0)
+  totalDramas     Int      @default(0)
+  completedDramas Int      @default(0)
+  topDramaId      String?
+  topGenre        String?
+  generatedAt     DateTime @default(now())
+
+  @@unique([userId, year, month])
+}
+
+model DailyRanking {
+  id        String   @id @default(uuid())
+  rank      Int
+  dramaId   String
+  date      String   // YYYY-MM-DD
+  isTop10   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([dramaId, date])
+  @@index([date, rank])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(uuid())
+  userId    String?
+  event     String
+  props     String?
+  page      String?
+  ip        String?
+  ua        String?
+  createdAt DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([userId, createdAt])
+}
+
 model Notification {
   id        String   @id @default(uuid())
   userId    String   // 接收者
@@ -335,5 +376,28 @@ model Notification {
 
   @@index([userId, isRead, createdAt])
   @@index([userId, createdAt])
+}
+
+model Achievement {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String
+  icon        String
+  condition   String
+  createdAt   DateTime @default(now())
+
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(uuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
 }
 

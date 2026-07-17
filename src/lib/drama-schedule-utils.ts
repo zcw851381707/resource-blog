@@ -147,6 +147,7 @@ export type ScheduleDrama = {
   completedAt?: Date | string | null
   isOnSchedule?: boolean
   isUpcoming?: boolean
+  clickCount?: number | null
 } & Record<string, unknown>
 
 export function buildWeeklySchedule<T extends ScheduleDrama>(dramas: T[], now = new Date()): Record<string, T[]> {
@@ -270,7 +271,12 @@ export function buildWeeklySchedule<T extends ScheduleDrama>(dramas: T[], now = 
   for (let i = 0; i < 7; i++) {
     const key = String(i)
     schedule[key].sort((a, b) => {
-      if (!a.airTime && !b.airTime) return 0
+      if (!a.airTime && !b.airTime) {
+        // 都没时间时按点击量排
+        const ac = (a as any).clickCount || 0
+        const bc = (b as any).clickCount || 0
+        return bc - ac
+      }
       if (!a.airTime) return 1
       if (!b.airTime) return -1
 
@@ -278,6 +284,13 @@ export function buildWeeklySchedule<T extends ScheduleDrama>(dramas: T[], now = 
       const [bh, bm] = b.airTime.split(':').map(Number)
       const aMins = ah * 60 + am
       const bMins = bh * 60 + bm
+
+      // 相同播出时间按点击量排
+      if (aMins === bMins) {
+        const ac = (a as any).clickCount || 0
+        const bc = (b as any).clickCount || 0
+        return bc - ac
+      }
 
       if (key === todayKey) {
         const aDiff = aMins - currentMinutes

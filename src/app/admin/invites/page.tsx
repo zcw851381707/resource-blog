@@ -48,10 +48,11 @@ export default function AdminInvitesPage() {
   }
 
   const copyCode = (code: string) => {
-    navigator.clipboard?.writeText(code).then(() => {
+    const text = `注册邀请码：${code}`
+    navigator.clipboard?.writeText(text).then(() => {
       setCopied(code)
       setTimeout(() => setCopied(''), 2000)
-    }).catch(() => alert('复制失败，请手动复制：' + code))
+    }).catch(() => alert('复制失败，请手动复制：' + text))
   }
 
   const deleteCode = async (id: string) => {

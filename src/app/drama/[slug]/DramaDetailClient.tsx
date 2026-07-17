@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import DramaGrid from '@/components/DramaGrid'
 import ShareModal from '@/components/ShareModal'
+import FollowersList from '@/components/FollowersList'
 import { isNewlyAiredActive, isRecentlyCompleted, isUpcomingActive, calcCurrentEpisode } from '@/lib/drama-schedule-utils'
 import { useAuth } from '@/lib/auth-context'
 
@@ -106,6 +107,10 @@ function getEpisodeLabel(d: DramaInfo): string {
     airDays: d.airDays,
     airTime: d.airTime,
   })
+  // 集数按日期实时算，到总集数就封顶并显示完结（纯显示，不改数据库、不依赖定时任务）
+  if (d.totalEpisodes && d.totalEpisodes > 0 && ep >= d.totalEpisodes) {
+    return `已完结，共${d.totalEpisodes}集`
+  }
   if (ep && d.totalEpisodes) return `更新至第${ep}集，共${d.totalEpisodes}集`
   if (ep) return `更新至第${ep}集`
   if (d.totalEpisodes) return `共${d.totalEpisodes}集`
@@ -354,7 +359,7 @@ export default function DramaDetailClient({
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       {/* 上部：封面 + 信息 + 下载 */}
-      <div className="flex flex-col md:flex-row gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-[260px_1fr_260px] gap-6">
         {/* 左栏：封面 + 赞赏 */}
         <div className="w-full md:w-[260px] shrink-0">
           <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-[var(--bg-secondary)] shadow-sm select-none cursor-grab active:cursor-grabbing"
@@ -598,9 +603,16 @@ export default function DramaDetailClient({
 
           {/* 简介 */}
           {drama.description && (
-            <div className="mt-5">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">简介</h3>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
+            <div className="mt-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-7 h-7 rounded-lg bg-[var(--brand-pale)] flex items-center justify-center">
+                  <svg className="w-4 h-4 text-[var(--brand)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </span>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">简介</h3>
+              </div>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap ml-9">
                 {drama.description}
               </p>
             </div>
@@ -608,6 +620,11 @@ export default function DramaDetailClient({
 
           {/* 评分 */}
           <RatingSection dramaId={drama.id} />
+
+          {/* 手机端追剧伙伴：保留在原位（主区） */}
+          <div className="md:hidden">
+            <FollowersList dramaId={drama.id} />
+          </div>
 
           {/* 播出日历海报 */}
           {drama.scheduleImage && (
@@ -669,8 +686,8 @@ export default function DramaDetailClient({
         </div>
 
         {/* 右栏：下载区 */}
-        <div className="w-full md:w-[260px] shrink-0">
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5 sticky top-16">
+        <div className="w-full md:w-[260px]">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5 drama-download-sticky">
             {/* 在线观看 */}
             {drama.videoUrl && videoPlatform && (
               <a
@@ -865,6 +882,11 @@ export default function DramaDetailClient({
                 <img src={publicAccountImg} alt="关注公众号" className="w-full rounded-lg" />
               </div>
             )}
+
+            {/* PC 端追剧伙伴：移到公众号关注下面 */}
+            <div className="hidden md:block mt-5 pt-4 border-t border-[var(--border)]">
+              <FollowersList dramaId={drama.id} />
+            </div>
           </div>
         </div>
       </div>
@@ -1278,13 +1300,13 @@ function RatingSection({ dramaId }: { dramaId: string }) {
   const maxPct = Math.max(...pcts, 1)
 
   return (
-    <div className="mt-5">
-      <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-        <span className="w-6 h-6 rounded-md bg-[var(--brand-pale)] flex items-center justify-center text-[var(--brand)]">
-          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+    <div className="mt-6">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="w-7 h-7 rounded-lg bg-[var(--brand-pale)] flex items-center justify-center">
+          <svg className="w-4 h-4 text-[var(--brand)]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
         </span>
-        评分
-      </h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">评分</h3>
+      </div>
       <div className="bg-[var(--bg-card)] border border-[var(--brand-pale)] rounded-xl p-4">
         <div className="flex items-start gap-6 flex-wrap">
           {/* 左侧：10分制的大数字 / 收集中状态 */}

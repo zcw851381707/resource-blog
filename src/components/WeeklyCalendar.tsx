@@ -29,6 +29,7 @@ interface DramaData {
   imagePosition?: string | null
   seriesOrder?: number | null
   startDate?: Date | string | null
+  clickCount?: number | null
 }
 
 interface WeeklyCalendarProps {
@@ -155,23 +156,24 @@ function DramaItem({ drama, dayIndex, weekDates }: { drama: DramaData; dayIndex:
             const daysAfter = activeAirDays.filter(d => d > firstAirDay && d <= dayIndex).length
             displayEp = (drama.premiereEpisodes || 0) + daysAfter * epd
           }
-        } else {
-          // 正常播出：以当前真实集数 epNum 为基准，加上未来从最后一次播出后到目标日之间的播出次数 × epd
-          const now = new Date()
-          const nowMins = now.getHours() * 60 + now.getMinutes()
-          const isAiredToday = !!(drama.airTime && (() => {
-            const [h, m] = drama.airTime.split(':').map(Number)
-            return !isNaN(h) && !isNaN(m) && nowMins >= h * 60 + m
-          })())
-          // 最后已播出的日索引（本周内找不到时 lastAired = -1，本周所有播出日都算未来）
-          let lastAired = -1
-          for (const ad of [...airDayIndices].sort((a, b) => a - b)) {
-            if (pausedIndices.includes(ad)) continue
-            if (ad < todayIdx || (ad === todayIdx && isAiredToday)) lastAired = ad
-            else break
+        } else if (drama.startDate) {
+          // 正常播出：该日集数 = 从首播日到该日(含)累计播出次数，按 首播集 +(次数-1)*每日集 算。
+          // 纯按日期，全天恒定，不受 currentEpisode 漂移或播出时间影响（根治播出前后跳变）。
+          const start = new Date(drama.startDate)
+          start.setHours(0, 0, 0, 0)
+          const end = new Date(weekDates[dayIndex])
+          end.setHours(23, 59, 59, 999)
+          let airings = 0
+          const cursor = new Date(start)
+          while (cursor <= end) {
+            const ci = cursor.getDay() === 0 ? 6 : cursor.getDay() - 1
+            if (airDayIndices.includes(ci) && !pausedIndices.includes(ci)) airings++
+            cursor.setDate(cursor.getDate() + 1)
           }
-          const futureCount = airDayIndices.filter(d => d > lastAired && d <= dayIndex && !pausedIndices.includes(d)).length
-          displayEp = epNum + futureCount * epd
+          const prem = drama.premiereEpisodes || epd
+          displayEp = airings > 0 ? prem + (airings - 1) * epd : epNum
+        } else {
+          displayEp = epNum
         }
       } else if (drama.startDate) {
         // 无集数数据：从 startDate 正向计数
@@ -535,6 +537,9 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
       const aAiredAndInWindow = nowMins >= aAirMins && nowMins < aAirMins + 60
       const bAiredAndInWindow = nowMins >= bAirMins && nowMins < bAirMins + 60
       if (aAiredAndInWindow && bAiredAndInWindow) return bAirMins - aAirMins
+      // 相同播出时间按热度（点击量）排
+      if (aAirMins === bAirMins) console.log("[DEBUG]", a.title, a.clickCount, b.title, b.clickCount);
+      if (aAirMins === bAirMins) return (b.clickCount || 0) - (a.clickCount || 0)
       return aAirMins - bAirMins
     })
   }
@@ -822,23 +827,23 @@ export default function WeeklyCalendar({ schedule }: WeeklyCalendarProps) {
                                           const daysAfter = activeAirDays.filter((dd: number) => dd > firstAirDay && dd <= idx).length
                                           displayEp = (d.premiereEpisodes || 0) + daysAfter * epd
                                         }
-                                      } else {
-                                        // 正常播出：以当前真实集数 epNum 为基准，加上未来播出次数 × epd
-                                        const now2 = new Date()
-                                        const nowMins2 = now2.getHours() * 60 + now2.getMinutes()
-                                        const todayIdx2 = now2.getDay() === 0 ? 6 : now2.getDay() - 1
-                                        const isAiredToday2 = !!(d.airTime && (() => {
-                                          const [h2, m2] = d.airTime.split(':').map(Number)
-                                          return !isNaN(h2) && !isNaN(m2) && nowMins2 >= h2 * 60 + m2
-                                        })())
-                                        let lastAired2 = -1
-                                        for (const ad2 of [...airDayIndices].sort((a: number, b: number) => a - b)) {
-                                          if (pausedIndices2.includes(ad2)) continue
-                                          if (ad2 < todayIdx2 || (ad2 === todayIdx2 && isAiredToday2)) lastAired2 = ad2
-                                          else break
+                                      } else if (d.startDate) {
+                                        // 该日集数 = 从首播日到该日(含)累计播出次数，纯按日期恒定，不受播出时间/currentEpisode 影响
+                                        const start2 = new Date(d.startDate)
+                                        start2.setHours(0, 0, 0, 0)
+                                        const end2 = new Date(weekDates[idx])
+                                        end2.setHours(23, 59, 59, 999)
+                                        let airings2 = 0
+                                        const cursor2 = new Date(start2)
+                                        while (cursor2 <= end2) {
+                                          const ci2 = cursor2.getDay() === 0 ? 6 : cursor2.getDay() - 1
+                                          if (airDayIndices.includes(ci2) && !pausedIndices2.includes(ci2)) airings2++
+                                          cursor2.setDate(cursor2.getDate() + 1)
                                         }
-                                        const futureCount2 = airDayIndices.filter((dd: number) => dd > lastAired2 && dd <= idx && !pausedIndices2.includes(dd)).length
-                                        displayEp = epNum + futureCount2 * epd
+                                        const prem2 = d.premiereEpisodes || epd
+                                        displayEp = airings2 > 0 ? prem2 + (airings2 - 1) * epd : epNum
+                                      } else {
+                                        displayEp = epNum
                                       }
                                     } else if (d.startDate) {
                                       const targetDate = weekDates[idx]

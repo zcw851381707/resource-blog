@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { isUpcomingActive, calcCurrentEpisode } from '@/lib/drama-schedule-utils'
+import AchievementWall from '@/components/AchievementWall'
+import MonthlyReportSection from '@/components/MonthlyReport'
 
 type TabKey = 'info' | 'following' | 'planned' | 'favorites' | 'subscriptions' | 'comments'
 
@@ -355,6 +357,10 @@ export default function ProfilePage() {
               <ProfileCommentsList onChange={loadCounts} />
             </div>
           )}
+
+          {/* 成就墙（所有 Tab 通用） */}
+          <AchievementWall />
+          <MonthlyReportSection />
         </div>
       </div>
 

@@ -80,6 +80,9 @@ export async function POST(request: NextRequest) {
     await prisma.userFollowing.deleteMany({
       where: { userId: session.userId, dramaId },
     })
+    // 触发成就检查
+    const ch = new Headers(); const ck = request.headers.get('cookie'); if (ck) ch.set('cookie', ck)
+    fetch(`${request.nextUrl.origin}/api/achievements/check`, { method: 'POST', headers: ch }).catch(() => {})
     return NextResponse.json({ ok: true, following: null })
   }
 
@@ -101,6 +104,10 @@ export async function POST(request: NextRequest) {
       progress: typeof progress === 'number' ? progress : 0,
     },
   })
+
+  // 触发成就检查
+  const ch2 = new Headers(); const ck2 = request.headers.get('cookie'); if (ck2) ch2.set('cookie', ck2)
+  fetch(`${request.nextUrl.origin}/api/achievements/check`, { method: 'POST', headers: ch2 }).catch(() => {})
 
   return NextResponse.json({ ok: true, following: item })
 }

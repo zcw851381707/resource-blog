@@ -14,7 +14,7 @@ import { calcCurrentEpisode } from '@/lib/drama-schedule-utils'
 function UserMenu() {
   const { user, logout, isAdmin } = useAuth()
   const [open, setOpen] = useState(false)
-  const [counts, setCounts] = useState({ watching: 0, favorites: 0, newEpisodes: 0, subscriptionNotifs: 0 })
+  const [counts, setCounts] = useState({ watching: 0, favorites: 0, newEpisodes: 0, subscriptionNotifs: 0, subscriptions: 0 })
   const [notifCount, setNotifCount] = useState(0)  // 通知中心未读数
   const ref = useRef<HTMLDivElement>(null)
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -44,12 +44,14 @@ function UserMenu() {
     if (!user) return
     const loadCounts = async () => {
       try {
-        const [favRes, follRes, subUnreadRes, notifRes] = await Promise.all([
+        const [favRes, follRes, subUnreadRes, subRes, notifRes] = await Promise.all([
           fetch('/api/favorites'),
           fetch('/api/following'),
           fetch('/api/subscriptions/unread').then(r => r.json()).catch(() => ({ count: 0 })),
+          fetch('/api/subscriptions').then(r => r.json()).catch(() => ({ items: [] })),
           fetch('/api/notifications').then(r => r.json()).catch(() => ({ unreadCount: 0 })),
         ])
+        const subData = await subRes.json()
         const favData = await favRes.json()
         const follData = await follRes.json()
         const follItems: Array<{ dramaId: string; status: string; progress: number }> = follData.items || []
@@ -76,6 +78,7 @@ function UserMenu() {
           favorites: (favData.items || []).length,
           newEpisodes: newEp,
           subscriptionNotifs: subUnreadRes.count || 0,
+          subscriptions: (subData.items || []).length,
         })
         setNotifCount(notifRes.unreadCount || 0)
       } catch {
@@ -191,6 +194,9 @@ function UserMenu() {
               <span className="min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
                 {counts.subscriptionNotifs > 99 ? '99+' : counts.subscriptionNotifs}
               </span>
+            )}
+            {counts.subscriptions > 0 && counts.subscriptionNotifs === 0 && (
+              <span className="text-xs text-[var(--text-muted)]">{counts.subscriptions}</span>
             )}
           </Link>
           {isAdmin && (

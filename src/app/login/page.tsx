@@ -55,7 +55,7 @@ function LoginForm() {
 
   return (
     <>
-    <div className="fixed inset-0 overflow-y-auto flex flex-col items-center justify-center px-4 gap-6 bg-gradient-to-b from-[#FFF5F5] to-[#FFEAEA]">
+    <div className="fixed inset-0 overflow-hidden flex flex-col items-center justify-center px-4 gap-6 bg-gradient-to-b from-[#FFF5F5] to-[#FFEAEA]">
       {/* 两个背景大球 */}
       <div className="pointer-events-none absolute -top-[100px] -left-[100px] w-[320px] h-[320px] rounded-full" style={{ background: 'rgba(232,160,164,0.1)' }} />
       <div className="pointer-events-none absolute -bottom-[150px] -right-[150px] w-[380px] h-[380px] rounded-full" style={{ background: 'rgba(232,160,164,0.08)' }} />

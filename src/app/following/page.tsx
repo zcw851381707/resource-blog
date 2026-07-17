@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useAuth } from '@/lib/auth-context'
+import CompletionCelebration from '@/components/CompletionCelebration'
 
 interface DramaLite {
   id: string
@@ -76,6 +77,19 @@ export default function FollowingPage() {
   const [tab, setTab] = useState<FollowItem['status']>('watching')
   const [actionMenu, setActionMenu] = useState<string | null>(null) // dramaId
 
+  // 完结仪式弹窗状态
+  const [celebrationDrama, setCelebrationDrama] = useState<{
+    id: string
+    title: string
+    slug: string
+    coverImage?: string | null
+    totalEpisodes?: number | null
+    progress: number
+    createdAt: string
+    completedAt: string
+    partnerCount: number
+  } | null>(null)
+
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/following')
@@ -96,6 +110,27 @@ export default function FollowingPage() {
     load()
   }, [user, loading, router, load])
 
+  // 进入页面：把所有"追剧中"剧集的 progress 自动同步到最新集，清除红点
+  // （用户看过 = 已更新进度）
+  useEffect(() => {
+    if (!items.length) return
+    const watchingItems = items.filter(i => i.status === 'watching')
+    watchingItems.forEach(it => {
+      const d = dramas[it.dramaId]
+      if (!d) return
+      if (d.isCompleted) return
+      const adminEp = getAdminEp(d)
+      if (adminEp > (it.progress || 0)) {
+        // 自动同步 progress 到最新集
+        fetch('/api/following', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dramaId: it.dramaId, status: 'watching', progress: adminEp }),
+        }).catch(() => {})
+      }
+    })
+  }, [items, dramas])
+
   // 关闭动作菜单
   useEffect(() => {
     if (!actionMenu) return
@@ -106,6 +141,11 @@ export default function FollowingPage() {
 
   const setStatus = async (dramaId: string, newStatus: FollowItem['status'] | 'remove') => {
     setActionMenu(null)
+    // 检测是否切到"已看完"
+    const oldItem = items.find(i => i.dramaId === dramaId)
+    const oldStatus = oldItem?.status
+    const willCelebrate = oldStatus !== 'completed' && newStatus === 'completed'
+
     await fetch('/api/following', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -115,6 +155,42 @@ export default function FollowingPage() {
       setItems(prev => prev.filter(i => i.dramaId !== dramaId))
     } else {
       setItems(prev => prev.map(i => i.dramaId === dramaId ? { ...i, status: newStatus } : i))
+    }
+
+    // 触发完结仪式
+    if (willCelebrate) {
+      const d = dramas[dramaId]
+      if (d) {
+        // 获取追剧伙伴数
+        fetch(`/api/drama/${dramaId}/followers`)
+          .then(r => r.json())
+          .then(data => {
+            setCelebrationDrama({
+              id: dramaId,
+              title: d.title,
+              slug: d.slug,
+              coverImage: d.coverImage,
+              totalEpisodes: d.totalEpisodes,
+              progress: oldItem?.progress || d.totalEpisodes || 0,
+              createdAt: oldItem?.createdAt || new Date().toISOString(),
+              completedAt: new Date().toISOString(),
+              partnerCount: data.total || 0,
+            })
+          })
+          .catch(() => {
+            setCelebrationDrama({
+              id: dramaId,
+              title: d.title,
+              slug: d.slug,
+              coverImage: d.coverImage,
+              totalEpisodes: d.totalEpisodes,
+              progress: oldItem?.progress || d.totalEpisodes || 0,
+              createdAt: oldItem?.createdAt || new Date().toISOString(),
+              completedAt: new Date().toISOString(),
+              partnerCount: 0,
+            })
+          })
+      }
     }
   }
 
@@ -328,6 +404,9 @@ export default function FollowingPage() {
           })}
         </div>
       )}
+
+      {/* 完结仪式弹窗 */}
+      <CompletionCelebration drama={celebrationDrama} onClose={() => setCelebrationDrama(null)} />
     </div>
   )
 }

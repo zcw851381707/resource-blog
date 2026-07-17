@@ -56,16 +56,20 @@ function AllPageContent() {
     if (selectedRegion) {
       const regionMap: Record<string, string[]> = {
         '华语剧': ['中国', '中国台湾', '中国香港', '中国澳门'],
-        '泰国': ['泰国'],
+        '泰国': ['泰国', '越南', '缅甸', '菲律宾', '新加坡', '马来西亚'],
         '韩国': ['韩国'],
         '日本': ['日本'],
-        '其他': ['越南', '缅甸', '菲律宾', '新加坡', '其他地区'],
+        '其他': ['其他地区'],
       }
       const includes = regionMap[selectedRegion] || [selectedRegion]
       const dramaRegions = (d.region || '').split(',').filter(Boolean)
       if (!dramaRegions.some(r => includes.includes(r))) return false
     }
-    if (selectedTag === 'new' && !d.isNewlyAired) return false
+    if (selectedTag === 'new') {
+      const threeMonthsAgo = new Date()
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+      if (!d.createdAt || new Date(d.createdAt) < threeMonthsAgo) return false
+    }
     if (selectedTag === 'upcoming' && !isUpcomingActive(d)) return false
     if (selectedTag === 'schedule' && !d.isOnSchedule) return false
     if (selectedTag === 'completed' && !d.isCompleted) return false

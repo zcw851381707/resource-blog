@@ -3,10 +3,10 @@ import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 
 // 完全公开的路径
-const FULLY_PUBLIC = ['/login', '/agreement', '/disclaimer', '/api/auth', '/api/captcha', '/api/visit', '/api/requests', '/api/announcements', '/api/uploads', '/_next', '/favicon', '/uploads']
+const FULLY_PUBLIC = ['/login', '/agreement', '/disclaimer', '/api/auth', '/api/captcha', '/api/visit', '/api/requests', '/api/announcements', '/api/uploads', '/api/analytics', '/_next', '/favicon', '/uploads']
 
 // GET 公开的 API
-const READ_PUBLIC_API = ['/api/drama', '/api/comments', '/api/banners', '/api/socials', '/api/favorites', '/api/following', '/api/subscriptions', '/api/notifications', '/api/ratings', '/api/search', '/api/link-report', '/api/settings']
+const READ_PUBLIC_API = ['/api/drama', '/api/comments', '/api/banners', '/api/socials', '/api/favorites', '/api/following', '/api/subscriptions', '/api/notifications', '/api/ratings', '/api/search', '/api/link-report', '/api/settings', '/api/home', '/api/reports']
 
 const STATIC_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.css', '.js', '.json', '.xml', '.txt', '.mp4', '.webm']
 

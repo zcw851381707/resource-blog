@@ -42,7 +42,7 @@ interface Drama {
   downloadLinks: { id: string; platform: string; url: string; extractCode?: string | null }[]
 }
 
-const regionOptions = ['中国', '中国台湾', '中国香港', '中国澳门', '泰国', '日本', '韩国', '越南', '缅甸', '菲律宾', '新加坡', '其他地区']
+const regionOptions = ['中国', '中国台湾', '中国香港', '中国澳门', '泰国', '日本', '韩国', '越南', '缅甸', '菲律宾', '新加坡', '马来西亚', '其他地区']
 const dayOptions = [
   { value: '0', label: '周一' }, { value: '1', label: '周二' }, { value: '2', label: '周三' },
   { value: '3', label: '周四' }, { value: '4', label: '周五' }, { value: '5', label: '周六' }, { value: '6', label: '周日' },
@@ -214,6 +214,7 @@ export default function AdminDrama() {
           else if (/缅/.test(raw)) updatedForm.region = '缅甸'
           else if (/菲/.test(raw)) updatedForm.region = '菲律宾'
           else if (/新加/.test(raw)) updatedForm.region = '新加坡'
+          else if (/马来/.test(raw)) updatedForm.region = '马来西亚'
         }
       }
     }

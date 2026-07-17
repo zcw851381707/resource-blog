@@ -3,6 +3,7 @@
 import { AuthProvider } from '@/lib/auth-context'
 import AuthGate from './AuthGate'
 import VisitTracker from './VisitTracker'
+import AnalyticsTracker from './AnalyticsTracker'
 
 import { SiteHeader, SiteFooter, SiteMobileNav } from './SiteChrome'
 import { usePathname } from 'next/navigation'
@@ -15,6 +16,7 @@ export default function ClientShell({ children }: { children: React.ReactNode })
   return (
     <AuthProvider>
       <VisitTracker />
+			<AnalyticsTracker />
       {isAdmin ? (
         <>{children}</>
       ) : isPublic ? (

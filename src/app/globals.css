@@ -117,8 +117,6 @@ body {
   background: var(--bg);
   color: var(--text-primary);
   font-family: "PingFang SC", "苹方", -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
-  /* 防止首页文章轮播等溢出导致整页横向滚动 */
-  overflow-x: hidden;
 }
 
 /* 移动端输入框防止 iOS 自动放大 */
@@ -142,6 +140,14 @@ body {
 html {
   /* 配合 body 的 overflow-x:hidden，双保险 */
   overflow-x: hidden;
+}
+
+/* 详情页右侧下载区固定悬浮 */
+.drama-download-sticky {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: 4rem !important;
+  align-self: start;
 }
 
 /* 滚动条样式 */

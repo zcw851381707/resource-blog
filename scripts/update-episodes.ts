@@ -1,6 +1,24 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaLibSQL } from '@prisma/adapter-libsql'
+import { createClient } from '@libsql/client'
+import { readFileSync } from 'fs'
 
-const prisma = new PrismaClient()
+// 独立脚本(cron)运行时没有 Next.js 注入环境变量，这里自加载 .env 拿到 Turso 连接信息。
+// cron 命令会先 cd 到项目根目录，故按 cwd 读取 .env。
+try {
+  for (const line of readFileSync('.env', 'utf8').split('\n')) {
+    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/)
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '')
+  }
+} catch { /* .env 不存在时忽略，交由已有环境变量 */ }
+
+// 必须走 libsql 适配器写线上 Turso；裸 new PrismaClient() 会连 schema 里的本地 dev.db（已废弃）。
+const libsql = createClient({
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+})
+const adapter = new PrismaLibSQL(libsql)
+const prisma = new PrismaClient({ adapter })
 
 export async function updateEpisodesBatch() {
   const now = new Date()
@@ -13,7 +31,8 @@ export async function updateEpisodesBatch() {
   const todayStr = toLocalDateStr(now)
 
   const dramas = await prisma.drama.findMany({
-    where: { isOnSchedule: true, airTime: { not: null }, airDays: { not: null } },
+    // 已完结的剧不再推进集数（否则仍在排期上的完结剧会被反复 +1）
+    where: { isOnSchedule: true, isCompleted: false, airTime: { not: null }, airDays: { not: null } },
     select: { id: true, title: true, currentEpisode: true, episodesPerDay: true, airDays: true, airTime: true, lastEpisodeUpdate: true, pausedDays: true, isSuspended: true }
   })
 

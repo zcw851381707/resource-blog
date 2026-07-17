@@ -83,6 +83,25 @@ export default function AuthModal({ show, initialPage = 'login', onClose }: Prop
     }
   }, [codeCountdown])
 
+  // 弹窗打开时锁住背景滚动，防止手机/iPad 上背景被拖动、上下露出空白
+  useEffect(() => {
+    if (!show) return
+    const scrollY = window.scrollY
+    const { style } = document.body
+    const prev = { position: style.position, top: style.top, width: style.width, overflow: style.overflow }
+    style.position = 'fixed'
+    style.top = `-${scrollY}px`
+    style.width = '100%'
+    style.overflow = 'hidden'
+    return () => {
+      style.position = prev.position
+      style.top = prev.top
+      style.width = prev.width
+      style.overflow = prev.overflow
+      window.scrollTo(0, scrollY)
+    }
+  }, [show])
+
   if (!show) return null
 
   const handleSendCode = async (email: string, purpose: 'register' | 'reset') => {
@@ -151,8 +170,8 @@ export default function AuthModal({ show, initialPage = 'login', onClose }: Prop
   const btnClass = "w-full h-11 rounded-lg bg-[var(--brand)] text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
 
   return (
-    <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-[400px] max-h-[90vh] overflow-y-auto animate-modal-in">
+    <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overscroll-none">
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-[400px] max-h-[90dvh] overflow-y-auto overscroll-contain animate-modal-in">
 
         {/* 头部 */}
         <div className="flex items-center justify-between px-6 pt-6 pb-3">
@@ -227,18 +246,20 @@ export default function AuthModal({ show, initialPage = 'login', onClose }: Prop
                 <div className="relative"><input type={showPwd.has("reg2") ? "text" : "password"} className={inputClass + ' pr-12'} placeholder="请再次输入密码" autoComplete="new-password" value={regPass2} onChange={e => setRegPass2(e.target.value)} onKeyDown={detectCaps("reg2")} onKeyUp={detectCaps("reg2")} /><button type="button" onClick={() => togglePwd("reg2")} aria-label={showPwd.has("reg2") ? '隐藏密码' : '显示密码'} className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-[var(--text-muted)] active:text-[var(--brand)] cursor-pointer z-10 touch-manipulation"><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
                 {capsOn.has("reg2") && <p className="mt-1 text-xs text-orange-500 flex items-center gap-1"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>大写锁定已打开</p>}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">性别（选填）</label>
-                <select className={inputClass} value={regGender} onChange={e => setRegGender(e.target.value)}>
-                  <option value="">保密</option>
-                  <option value="male">男</option>
-                  <option value="female">女</option>
-                  <option value="other">其他</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">生日（选填）</label>
-                <input type="date" className={inputClass} value={regBirthday} onChange={e => setRegBirthday(e.target.value)} />
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">性别（选填）</label>
+                  <select className={inputClass} value={regGender} onChange={e => setRegGender(e.target.value)}>
+                    <option value="">保密</option>
+                    <option value="male">男</option>
+                    <option value="female">女</option>
+                    <option value="other">其他</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">生日（选填）</label>
+                  <input type="date" className={inputClass} value={regBirthday} onChange={e => setRegBirthday(e.target.value)} />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">头像（选填）</label>

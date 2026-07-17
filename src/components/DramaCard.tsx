@@ -108,7 +108,6 @@ export default function DramaCard({ drama }: { drama: DramaCardProps }) {
       return diffMs >= 0 && diffMs <= 60 * 24 * 60 * 60 * 1000
     })())
   )
-
   return (
     <Link href={href} className="group block" onClick={handleClick}>
       <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-[var(--bg-secondary)] shadow-sm group-hover:shadow-md group-hover:-translate-y-1 active:scale-[0.97] transition-all duration-200">

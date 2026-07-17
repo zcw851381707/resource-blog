@@ -25,6 +25,11 @@ export default function SubscriptionsPage() {
 
   useEffect(() => { load() }, [load])
 
+  // 进入页面：把所有未读预约通知标为已读，红点消失
+  useEffect(() => {
+    fetch('/api/subscriptions/mark-read', { method: 'POST' }).catch(() => {})
+  }, [])
+
   const remove = async (dramaId: string) => {
     await fetch('/api/subscriptions', {
       method: 'POST',

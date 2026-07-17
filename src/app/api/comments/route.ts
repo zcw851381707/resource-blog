@@ -275,6 +275,11 @@ export async function POST(request: NextRequest) {
       replyToUser: replyToUser || null,
     },
   })
+  // 评论后异步触发成就检查
+  const checkHeaders = new Headers()
+  const cookie = request.headers.get('cookie')
+  if (cookie) checkHeaders.set('cookie', cookie)
+  fetch(`${request.nextUrl.origin}/api/achievements/check`, { method: 'POST', headers: checkHeaders }).catch(() => {})
 
   // 更新父评论的 replyCount
   if (parentId) {
